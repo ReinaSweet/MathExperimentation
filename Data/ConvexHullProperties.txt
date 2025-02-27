@@ -1,0 +1,78 @@
+Convex Hull properties:
+Convexity ensures line segment between any two hull points lies entirely within hull
+Uniqueness guarantees only one convex hull exists for given point set
+Invariance under affine transformations preserves convex hull shape during translation, rotation, scaling
+
+
+I'm looking to test if a 2D convex hull can fit into a square with a known side length (S). The convex hull can freely translate and rotate.
+I can readily find sources that describe how to find the minimum bounding box (as a rectangle more generally), but nothing about a fitting to specifically a square. So, I'm having to reapproach the problem.
+This is my current approach:
+
+1. Find the centroid of the convex hull, the translate the convex hull such that the centroid is fixed at an origin point (0, 0). This is mostly to make rotations simpler in later steps.
+2. Let Xmin, Xmax, Ymin, and Ymax describe the points that have the lowest X, greatest X, lowest Y, and greatest Y relative to the origin (respectively).
+   In the case where multiple points could be described as one of the min/max points above, select from those sets of points the point where rotating all points in that set around the origin by some small positive epsilon results in one having the most extreme min/max (as appropriate to the desired point).
+3. Find the next rotation of all points about the origin that either (whatever happens first):
+   a. Changes which point would be described as Xmin, Xmax, Ymin, Ymax.
+   b. Arrives at a "square confinement" position such that (Ymax - Ymin).Y <= S and (Xmax - Xmin).X <= S. In this case, jump to step 5.
+4. Repeat operation 3 until we've reached a rotation of 90 degrees.
+5. If step 3b described a "square confinement" position, our convex hull is fittable in the described square. Otherwise, it isn't.
+
+(preemptive apologies for non-rigorous language. My formal math background is rather limited)
+Would I be able to get feedback on if my approach makes sense?
+
+
+Fix the convex hull centroid and rotate all other points around it.
+* Every possible pair of max height & max width is describable at some point in this rotation, such that at some rotation there exists a square 
+
+// https://math.stackexchange.com/questions/802612/smallest-square-containing-a-given-triangle
+
+
+Current Points (FitsCe_1_2_1):
+ 0: {1005,1005}  1: {1741,1005}  2: {1005,0}  3: {1100,0}
+
+Fail Point: {1023,1023}
+
+Fits Point: {1022,1022}
+Starting Point: {1005,1005}
+Fits Point: {768,768}
+
+Fail Point: {767,767}
+
+
+Current Points (FitsCe_1_2_1):
+ 0: {1005,1005}  1: {1741,1005}  2: {1005,0}  3: {1100,0}
+
+Fail Point: {1140,0}
+
+Fits Point: {1139,0}
+Starting Point: {1005,0}
+Fits Point: {951,0}
+
+Fail Point: {950,0}
+
+Current Points (FitsLowerLeft2):
+ 0: {0,0}  1: {0,1005}  2: {834,0}
+
+Fail Point: {905,0}
+
+Fits Point: {904,0}
+Starting Point: {834,0}
+Fits Point: {-62,0}
+
+Fail Point: {-63,0}
+
+
+List of four (or more) games that aim to:
+1. Imply a large plane of possible games that could exist between them.
+2. Is personally meaningful.
+
+Example:
+* Tetris
+* Majora's Mask
+* Forbidden Stars
+* The Floor is Lava
+
+Something abstract, without a definite win but success driven by an ever increasing score. A puzzle reliant on reaction time and consideration.
+Majora's Mask, story driven narrative.
+Forbidden Stars. A board game, competitive, with bluffing, decks of cards, victory point driven victory.
+The floor is lava (the childhood game). Non-electronic. No physical pieces required (except what you designate for the things you can step on, of course). Can be played alone or in groups. There's not really a win, only a "don't lose". You play until you're tired of playing, and depends purely on imagination and a single rule.
