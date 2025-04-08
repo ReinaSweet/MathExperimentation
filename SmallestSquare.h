@@ -1,5 +1,4 @@
 #pragma once
-#include "stdafx.h"
 #include "NamedVector2.h"
 
 class SmallestSquare

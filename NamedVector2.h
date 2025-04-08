@@ -1,5 +1,4 @@
 #pragma once
-#include "stdafx.h"
 #include "Math.h"
 
 #define NAMEDVECTOR2_ENABLESTRINGNAMES 1

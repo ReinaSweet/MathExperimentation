@@ -1,5 +1,4 @@
 #pragma once
-#include "stdafx.h"
 
 #define ENUM_OPS(Enum) \
     inline           Enum& operator|=(Enum& lhs, Enum rhs) { return lhs = (Enum)((std::underlying_type<Enum>::type)lhs | (std::underlying_type<Enum>::type)rhs); } \

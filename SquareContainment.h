@@ -1,5 +1,4 @@
 #pragma once
-#include "stdafx.h"
 #include "MathCommon.h"
 #include "Math.h"
 #include "NamedVector2.h"

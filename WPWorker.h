@@ -75,7 +75,7 @@ public:
 	{
 		DieRoll mTens;
 		DieRoll mOnes;
-		int32_t mTotalValue;
+		int32_t mTotalValue = 0;
 
 		int32_t GetDieRollOnlyValue() const;
 		int32_t CountEffects(DiceEffect diceEffect) const;
