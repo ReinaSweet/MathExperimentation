@@ -24,81 +24,65 @@ public:
 
     void FillExtendedExtendedBlock(SetRandomizerInternal::CombinatoricBlock& combinatoricIndexes, int64_t combinatoricRandom)
     {
-        mValueAndRemainder = { 0, combinatoricRandom % FactorialRangeExtendedExtended(mNextCombinatoricSize) };
-
-        --mNextCombinatoricSize;
-        mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRangeExtendedExtended(mNextCombinatoricSize));
-        combinatoricIndexes[mNextCombinatoricSize - SetRandomizerInternal::kNumCombinatoricIndexesExtended] = GetAndRemovePosition_Careful(mValueAndRemainder.quot);
-
-        while (mNextCombinatoricSize > SetRandomizerInternal::kNumCombinatoricIndexesExtended)
-        {
-            --mNextCombinatoricSize;
-            mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRangeExtendedExtended(mNextCombinatoricSize));
-            combinatoricIndexes[mNextCombinatoricSize - SetRandomizerInternal::kNumCombinatoricIndexesExtended] = GetAndRemovePosition_Fast(mValueAndRemainder.quot);
-        }
+        FillBlock<SetRandomizerInternal::kNumCombinatoricIndexesExtended, SetRandomizerInternal::kNumCombinatoricIndexesExtendedExtended>(combinatoricIndexes, combinatoricRandom);
     }
 
     void FillExtendedBlock(SetRandomizerInternal::CombinatoricBlock& combinatoricIndexes, int64_t combinatoricRandom)
     {
-        mValueAndRemainder = { 0, combinatoricRandom % FactorialRangeExtended(mNextCombinatoricSize) };
-
-        --mNextCombinatoricSize;
-        mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRangeExtended(mNextCombinatoricSize));
-        combinatoricIndexes[mNextCombinatoricSize - SetRandomizerInternal::kNumCombinatoricIndexes] = GetAndRemovePosition_Careful(mValueAndRemainder.quot);
-
-        while (mNextCombinatoricSize > SetRandomizerInternal::kNumCombinatoricIndexes)
-        {
-            --mNextCombinatoricSize;
-            mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRangeExtended(mNextCombinatoricSize));
-            combinatoricIndexes[mNextCombinatoricSize - SetRandomizerInternal::kNumCombinatoricIndexes] = GetAndRemovePosition_Fast(mValueAndRemainder.quot);
-        }
+        FillBlock<SetRandomizerInternal::kNumCombinatoricIndexes, SetRandomizerInternal::kNumCombinatoricIndexesExtended>(combinatoricIndexes, combinatoricRandom);
     }
 
     void FillStandardBlock(SetRandomizerInternal::CombinatoricBlock& combinatoricIndexes, int64_t combinatoricRandom)
     {
-        mValueAndRemainder = { 0, combinatoricRandom % FactorialRangeBase(mNextCombinatoricSize) };
+        FillBlock<0, SetRandomizerInternal::kNumCombinatoricIndexes, true>(combinatoricIndexes, combinatoricRandom);
+    }
+
+
+    template<int64_t Min, int64_t Max, bool CoinflipFinalTwo = false>
+    void FillBlock(SetRandomizerInternal::CombinatoricBlock& combinatoricIndexes, int64_t combinatoricRandom)
+    {
+        mValueAndRemainder = { 0, combinatoricRandom % FactorialRange<Min, Max>(mNextCombinatoricSize) };
 
         --mNextCombinatoricSize;
-        mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRangeBase(mNextCombinatoricSize));
-        combinatoricIndexes[mNextCombinatoricSize] = GetAndRemovePosition_Careful(mValueAndRemainder.quot);
+        mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRange<Min, Max>(mNextCombinatoricSize));
+        combinatoricIndexes[mNextCombinatoricSize - Min] = GetAndRemovePosition_Careful(mValueAndRemainder.quot);
 
-        while (mNextCombinatoricSize > 2)
+        constexpr int64_t LoopMin = (Min + ((int64_t)CoinflipFinalTwo * 2));
+        while (mNextCombinatoricSize > LoopMin)
         {
             --mNextCombinatoricSize;
-            mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRangeBase(mNextCombinatoricSize));
-            combinatoricIndexes[mNextCombinatoricSize] = GetAndRemovePosition_Fast(mValueAndRemainder.quot);
-        } 
-        combinatoricIndexes[1] = mPositionSet[mValueAndRemainder.rem & 0b1];
-        combinatoricIndexes[0] = mPositionSet[!(mValueAndRemainder.rem & 0b1)];
+            mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRange<Min, Max>(mNextCombinatoricSize));
+            combinatoricIndexes[mNextCombinatoricSize - Min] = GetAndRemovePosition_Fast(mValueAndRemainder.quot);
+        }
+
+        if constexpr (CoinflipFinalTwo)
+        {
+            combinatoricIndexes[1] = mPositionSet[mValueAndRemainder.rem & 0b1];
+            combinatoricIndexes[0] = mPositionSet[!(mValueAndRemainder.rem & 0b1)];
+        }
     }
 
 private:
-    uint8_t GetAndRemovePosition_Fast(int64_t position)
+    inline uint8_t GetAndRemovePosition_Fast(int64_t position)
     {
         const uint8_t positionValue = mPositionSet[position];
         memmove(&mPositionSet[position], &mPositionSet[position + 1], (NumPositions - position) * sizeof(uint8_t));
         return positionValue;
     }
 
-    uint8_t GetAndRemovePosition_Careful(int64_t position)
+    inline uint8_t GetAndRemovePosition_Careful(int64_t position)
     {
         const uint8_t positionValue = mPositionSet[position];
-        if ((position + 1) < mPositionSet.size())
+        if ((position + 1) < (int64_t)mPositionSet.size())
         {
             memmove(&mPositionSet[position], &mPositionSet[position + 1], (NumPositions - position) * sizeof(uint8_t));
         }
         return positionValue;
     }
 
-    static constexpr int64_t GetBlockLowerInclusiveBound(int64_t blockIndex)
-    {
-        if (blockIndex >= 21) { return 21; }
-        return 1;
-    }
-
     static consteval int64_t ConstFactorialRange(int64_t min, int64_t max)
     {
-        int64_t value = min;
+        int64_t value = min == 0 ? 1 : min;
         for (; max > min; --max)
         {
             value *= max;
@@ -106,77 +90,40 @@ private:
         return value;
     }
 
-    static constexpr int64_t FactorialRangeExtendedExtended(int64_t m)
+    template<int64_t Max>
+    static consteval int64_t ConstMax(int64_t value)
     {
-        switch (m)
-        {
-        // Uncomment this to see the constexpr fail for running out of bit space
-        // case 44: return ConstFactorialRange(32, 44);
-        case 43: return ConstFactorialRange(32, 43);
-        case 42: return ConstFactorialRange(32, 42);
-        case 41: return ConstFactorialRange(32, 41);
-        case 40: return ConstFactorialRange(32, 40);
-        case 39: return ConstFactorialRange(32, 39);
-        case 38: return ConstFactorialRange(32, 38);
-        case 37: return ConstFactorialRange(32, 37);
-        case 36: return ConstFactorialRange(32, 36);
-        case 35: return ConstFactorialRange(32, 35);
-        case 34: return ConstFactorialRange(32, 34);
-        case 33: return ConstFactorialRange(32, 33);
-        case 32: return ConstFactorialRange(32, 32);
-        default: return 1;
-        }
+        return (value > Max) ? Max : value;
     }
 
-    static constexpr int64_t FactorialRangeExtended(int64_t m)
+    template<int64_t Min, int64_t Max>
+    static constexpr int64_t FactorialRange(int64_t m)
     {
         switch (m)
         {
         // Uncomment this to see the constexpr fail for running out of bit space
-        // case 33: return ConstFactorialRange(20, 33);
-        case 32: return ConstFactorialRange(20, 32);
-        case 31: return ConstFactorialRange(20, 31);
-        case 30: return ConstFactorialRange(20, 30);
-        case 29: return ConstFactorialRange(20, 29);
-        case 28: return ConstFactorialRange(20, 28);
-        case 27: return ConstFactorialRange(20, 27);
-        case 26: return ConstFactorialRange(20, 26);
-        case 25: return ConstFactorialRange(20, 25);
-        case 24: return ConstFactorialRange(20, 24);
-        case 23: return ConstFactorialRange(20, 23);
-        case 22: return ConstFactorialRange(20, 22);
-        case 21: return ConstFactorialRange(20, 21);
-        case 20: return ConstFactorialRange(20, 20);
-        default: return 1;
-        }
-    }
-
-    static constexpr int64_t FactorialRangeBase(int64_t m)
-    {
-        switch (m)
-        {
-        // Uncomment this to see the constexpr fail for running out of bit space
-        // case 21: return ConstFactorialRange(1, 21);
-        case 20: return ConstFactorialRange(1, 20);
-        case 19: return ConstFactorialRange(1, 19);
-        case 18: return ConstFactorialRange(1, 18);
-        case 17: return ConstFactorialRange(1, 17);
-        case 16: return ConstFactorialRange(1, 16);
-        case 15: return ConstFactorialRange(1, 15);
-        case 14: return ConstFactorialRange(1, 14);
-        case 13: return ConstFactorialRange(1, 13);
-        case 12: return ConstFactorialRange(1, 12);
-        case 11: return ConstFactorialRange(1, 11);
-        case 10: return ConstFactorialRange(1, 10);
-        case 9: return ConstFactorialRange(1, 9);
-        case 8: return ConstFactorialRange(1, 8);
-        case 7: return ConstFactorialRange(1, 7);
-        case 6: return ConstFactorialRange(1, 6);
-        case 5: return ConstFactorialRange(1, 5);
-        case 4: return ConstFactorialRange(1, 4);
-        case 3: return ConstFactorialRange(1, 3);
-        case 2: return ConstFactorialRange(1, 2);
-        case 1: return ConstFactorialRange(1, 1);
+        // case (Min + 21): return ConstFactorialRange(Min, ConstMax<Max + 1>(Min + 21));
+        case (Min + 20): return ConstFactorialRange(Min, ConstMax<Max>(Min + 20));
+        case (Min + 19): return ConstFactorialRange(Min, ConstMax<Max>(Min + 19));
+        case (Min + 18): return ConstFactorialRange(Min, ConstMax<Max>(Min + 18));
+        case (Min + 17): return ConstFactorialRange(Min, ConstMax<Max>(Min + 17));
+        case (Min + 16): return ConstFactorialRange(Min, ConstMax<Max>(Min + 16));
+        case (Min + 15): return ConstFactorialRange(Min, ConstMax<Max>(Min + 15));
+        case (Min + 14): return ConstFactorialRange(Min, ConstMax<Max>(Min + 14));
+        case (Min + 13): return ConstFactorialRange(Min, ConstMax<Max>(Min + 13));
+        case (Min + 12): return ConstFactorialRange(Min, ConstMax<Max>(Min + 12));
+        case (Min + 11): return ConstFactorialRange(Min, ConstMax<Max>(Min + 11));
+        case (Min + 10): return ConstFactorialRange(Min, ConstMax<Max>(Min + 10));
+        case (Min + 9 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 9 ));
+        case (Min + 8 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 8 ));
+        case (Min + 7 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 7 ));
+        case (Min + 6 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 6 ));
+        case (Min + 5 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 5 ));
+        case (Min + 4 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 4 ));
+        case (Min + 3 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 3 ));
+        case (Min + 2 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 2 ));
+        case (Min + 1 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 1 ));
+        case (Min): return ConstFactorialRange(Min, Min);
         default: return 1;
         }
     }

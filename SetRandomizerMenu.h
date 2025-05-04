@@ -1,5 +1,6 @@
 #pragma once
 #include "ConsoleMenu.h"
+#include <chrono>
 
 class SetRandomizerMenu
 {
@@ -11,7 +12,11 @@ private:
     void Cmd_VisualizeN_2(uint64_t n);
     void Cmd_VisualizeN_3(uint64_t n);
 
+    void Reseed();
+
     ConsoleMenu mMenu;
     ConsoleMenu mMenuVisualize;
+
+    const std::chrono::high_resolution_clock::time_point mStartTime;
 };
 

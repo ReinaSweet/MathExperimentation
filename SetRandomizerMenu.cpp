@@ -3,7 +3,6 @@
 #include "SetRandomizer.h"
 #include "MathPrint.h"
 
-#include <chrono>
 #include <random>
 
 std::mt19937 sDist;
@@ -111,8 +110,8 @@ namespace
 SetRandomizerMenu::SetRandomizerMenu(const char* const input, ConsoleMenu& parentMenu)
 : mMenu("Set Randomizer", parentMenu)
 , mMenuVisualize("Visualizer", mMenu)
+, mStartTime(std::chrono::high_resolution_clock::now())
 {
-    sDist.seed(static_cast<uint32_t>(std::time(nullptr)));
     parentMenu.AddSubmenu(input, mMenu);
 
     mMenu.AddSubmenu("v", mMenuVisualize);
@@ -129,18 +128,28 @@ SetRandomizerMenu::SetRandomizerMenu(const char* const input, ConsoleMenu& paren
 
 void SetRandomizerMenu::Cmd_VisualizeN_1(uint64_t n)
 {
+    Reseed();
     SetRandomizer<1> randomizer(&RandomNumber, (uint32_t)n);
     PrintRandomizer(randomizer);
 }
 
 void SetRandomizerMenu::Cmd_VisualizeN_2(uint64_t n)
 {
+    Reseed();
     SetRandomizer<2> randomizer(&RandomNumber, (uint32_t)n);
     PrintRandomizer(randomizer);
 }
 
 void SetRandomizerMenu::Cmd_VisualizeN_3(uint64_t n)
 {
+    Reseed();
     SetRandomizer<3> randomizer(&RandomNumber, (uint32_t)n);
     PrintRandomizer(randomizer);
+}
+
+void SetRandomizerMenu::Reseed()
+{
+    const std::chrono::high_resolution_clock::time_point time = std::chrono::high_resolution_clock::now();
+    const uint32_t timeSinceStart = (uint32_t)std::chrono::duration_cast<std::chrono::nanoseconds>(time - mStartTime).count();
+    sDist.seed(timeSinceStart);
 }

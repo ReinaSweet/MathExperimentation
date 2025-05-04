@@ -16,7 +16,6 @@ private:
 
     void Randomize(std::span<SetRandomizerInternal::CombinatoricBlock> combinatoricBlocks);
     uint32_t GetWheeledIndex(uint32_t index, std::span<const SetRandomizerInternal::CombinatoricBlock> combinatoricBlocks) const;
-    uint32_t RepeatedShuffle(uint32_t index, std::span<const SetRandomizerInternal::CombinatoricBlock>& combinatoricBlocks) const;
 
     enum class ShuffleMode : uint8_t
     {
@@ -25,7 +24,6 @@ private:
         kCombinatoric,
         kCombinatoricExtended,
         kCombinatoricExtendedExtended,
-        //kCombinatoricAndShift,
         kRepeatedShuffling,
         kRepeatedShufflingWithBlockMixing
     };
@@ -63,5 +61,4 @@ public:
 private:
     SetRandomizerInternal mInternalRandomizer;
     std::array<SetRandomizerInternal::CombinatoricBlock, CombinatoricBlocks> mCombinatoricIndexes;
-    std::array<uint8_t, 4> mCombinatoricShift;
 };
