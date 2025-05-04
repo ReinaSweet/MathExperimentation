@@ -139,6 +139,8 @@
     <ClCompile Include="MathPrint.cpp" />
     <ClCompile Include="ConsoleInfo.cpp" />
     <ClCompile Include="ConsoleMenu.cpp" />
+    <ClCompile Include="SetRandomizer.cpp" />
+    <ClCompile Include="SetRandomizerMenu.cpp" />
     <ClCompile Include="SmallestSquare.cpp" />
     <ClCompile Include="SquareContainment.cpp" />
     <ClCompile Include="SquareContainmentGlobalData.cpp" />
@@ -161,6 +163,8 @@
     <ClInclude Include="MathPrint.h" />
     <ClInclude Include="ConsoleInfo.h" />
     <ClInclude Include="ConsoleMenu.h" />
+    <ClInclude Include="SetRandomizer.h" />
+    <ClInclude Include="SetRandomizerMenu.h" />
     <ClInclude Include="SmallestSquare.h" />
     <ClInclude Include="SquareContainment.h" />
     <ClInclude Include="SquareContainmentGlobalData.h" />

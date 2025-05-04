@@ -13,6 +13,7 @@
 #include "WPScenario.h"
 #include "SmallestSquare.h"
 #include "SquareContainmentMenu.h"
+#include "SetRandomizerMenu.h"
 
 RNG* gRng = nullptr;
 
@@ -209,7 +210,8 @@ void TriangleSmallestSquareAssumeOrigin(uint64_t bX, uint64_t bY, uint64_t cX, u
  */
 int main()
 {
-	gRng = new RNG();
+    gRng = new RNG();
+
 
 	ConsoleMenu fightMenu("Fight Menu");
 	fightMenu.AddCommand("s", "Single Fight", WorkerPlacementDiceTest);
@@ -234,11 +236,13 @@ int main()
 	ConsoleMenu squareContainmentAnalysisMenu("Analysis Menu");
 	SquareContainmentMenu::SetupMenu(squareContainmentMenu, squareContainmentAnalysisMenu);
 
-	ConsoleMenu mainMenu("Main Menu");
+
+    ConsoleMenu mainMenu("Main Menu");
 	mainMenu.AddSubmenu("f", fightMenu);
 	mainMenu.AddSubmenu("c", challengeMenu);
 	mainMenu.AddSubmenu("t", triangleMenu);
-	mainMenu.AddSubmenu("s", squareContainmentMenu, SquareContainmentMenu::PreOpenMenu);
+    mainMenu.AddSubmenu("s", squareContainmentMenu, SquareContainmentMenu::PreOpenMenu);
+    SetRandomizerMenu setRandomizerMenu("r", mainMenu);
 	mainMenu.RunMenu();
 
 	delete gRng;

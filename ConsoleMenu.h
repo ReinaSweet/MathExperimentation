@@ -78,6 +78,7 @@ protected:
 };
 
 using FuncPtr0Num = std::function<void()>;
+using MemberFuncPtr0Num = void(*)(void);\
 class ConsoleMenuCommand0Num : public ConsoleMenuCommandI
 {
 public:
@@ -132,7 +133,7 @@ private:
     void AddCommand(const char* const input, const char* const description, const FuncPtr##NUMARGS##Num& func); \
     void AddCommand(const char* const input, const char* const description, const FuncPtr##NUMARGS##Num& func, const ValidateFuncPtr##NUMARGS##Num& validateFunc); \
     void AddCommand(FuncPtr0Num preArgsFunc, const char* const input, const char* const description, const FuncPtr##NUMARGS##Num& func); \
-    void AddCommand(FuncPtr0Num preArgsFunc, const char* const input, const char* const description, const FuncPtr##NUMARGS##Num& func, const ValidateFuncPtr##NUMARGS##Num& validateFunc)
+    void AddCommand(FuncPtr0Num preArgsFunc, const char* const input, const char* const description, const FuncPtr##NUMARGS##Num& func, const ValidateFuncPtr##NUMARGS##Num& validateFunc);
 
 #define CONSOLE_MENU_COMMAND_DEFINE(NUMARGS, ...) \
 void ConsoleMenu::AddCommand(const char* const input, const char* const description, const FuncPtr##NUMARGS##Num& func) \

@@ -72,6 +72,12 @@
     <ClCompile Include="SquareContainmentGlobalData.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SetRandomizer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SetRandomizerMenu.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ConsoleInfo.h">
@@ -126,6 +132,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SquareContainmentGlobalData.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SetRandomizer.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SetRandomizerMenu.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
