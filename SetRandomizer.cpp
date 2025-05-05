@@ -11,6 +11,17 @@
 template<size_t NumPositions = SetRandomizerInternal::kNumCombinatoricIndexes>
 class CombinatoricBuilder
 {
+private:
+    static consteval int64_t ConstFactorialRange(int64_t min, int64_t max)
+    {
+        int64_t value = min == 0 ? 1 : min;
+        for (; max > min; --max)
+        {
+            value *= max;
+        }
+        return value;
+    }
+
 public:
     CombinatoricBuilder(int32_t setSize)
         : mNextCombinatoricSize(setSize > NumPositions ? NumPositions : setSize)
@@ -22,40 +33,58 @@ public:
         }
     }
 
-    void FillExtendedExtendedBlock(SetRandomizerInternal::CombinatoricBlock& combinatoricIndexes, int64_t combinatoricRandom)
+    struct BlockConfig
     {
-        FillBlock<SetRandomizerInternal::kNumCombinatoricIndexesExtended, SetRandomizerInternal::kNumCombinatoricIndexesExtendedExtended>(combinatoricIndexes, combinatoricRandom);
+        int64_t Min;
+        int64_t Max;
+        bool CoinflipFinalTwo;
+    };
+    template<int64_t Min, int64_t Increment, bool CoinflipFinalTwo = false>
+    static consteval BlockConfig Config()
+    {
+        static_assert(ConstFactorialRange(Min, Min + Increment) > 0, "Min & Max can't fit in int64_t (see: ConstFactorialRange)");
+        return BlockConfig{Min, Min + Increment, CoinflipFinalTwo};
     }
 
-    void FillExtendedBlock(SetRandomizerInternal::CombinatoricBlock& combinatoricIndexes, int64_t combinatoricRandom)
+    static constexpr std::array<BlockConfig, 13> kBlockConfigs
     {
-        FillBlock<SetRandomizerInternal::kNumCombinatoricIndexes, SetRandomizerInternal::kNumCombinatoricIndexesExtended>(combinatoricIndexes, combinatoricRandom);
-    }
+        Config<0, 20, true>(),
+        Config<20, 12>(),
+        Config<32, 11>(),
+        Config<43, 10>(),
 
-    void FillStandardBlock(SetRandomizerInternal::CombinatoricBlock& combinatoricIndexes, int64_t combinatoricRandom)
-    {
-        FillBlock<0, SetRandomizerInternal::kNumCombinatoricIndexes, true>(combinatoricIndexes, combinatoricRandom);
-    }
+        // 9
+        Config<53, 9>(),
+        Config<62, 9>(),
+        Config<71, 9>(),
 
+        // 8
+        Config<80, 8>(),
+        Config<88, 8>(),
+        Config<96, 8>(),
+        Config<104, 8>(),
+        Config<112, 8>(),
+        Config<120, 8>()
+    };
 
-    template<int64_t Min, int64_t Max, bool CoinflipFinalTwo = false>
+    template<size_t BlockIndex, BlockConfig Config = kBlockConfigs[BlockIndex]>
     void FillBlock(SetRandomizerInternal::CombinatoricBlock& combinatoricIndexes, int64_t combinatoricRandom)
     {
-        mValueAndRemainder = { 0, combinatoricRandom % FactorialRange<Min, Max>(mNextCombinatoricSize) };
+        mValueAndRemainder = { 0, combinatoricRandom % FactorialRange<Config.Min, Config.Max>(mNextCombinatoricSize)};
 
         --mNextCombinatoricSize;
-        mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRange<Min, Max>(mNextCombinatoricSize));
-        combinatoricIndexes[mNextCombinatoricSize - Min] = GetAndRemovePosition_Careful(mValueAndRemainder.quot);
+        mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRange<Config.Min, Config.Max>(mNextCombinatoricSize));
+        combinatoricIndexes[mNextCombinatoricSize - Config.Min] = GetAndRemovePosition_Careful(mValueAndRemainder.quot);
 
-        constexpr int64_t LoopMin = (Min + ((int64_t)CoinflipFinalTwo * 2));
+        constexpr int64_t LoopMin = (Config.Min + ((int64_t)Config.CoinflipFinalTwo * 2));
         while (mNextCombinatoricSize > LoopMin)
         {
             --mNextCombinatoricSize;
-            mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRange<Min, Max>(mNextCombinatoricSize));
-            combinatoricIndexes[mNextCombinatoricSize - Min] = GetAndRemovePosition_Fast(mValueAndRemainder.quot);
+            mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRange<Config.Min, Config.Max>(mNextCombinatoricSize));
+            combinatoricIndexes[mNextCombinatoricSize - Config.Min] = GetAndRemovePosition_Fast(mValueAndRemainder.quot);
         }
 
-        if constexpr (CoinflipFinalTwo)
+        if constexpr (Config.CoinflipFinalTwo)
         {
             combinatoricIndexes[1] = mPositionSet[mValueAndRemainder.rem & 0b1];
             combinatoricIndexes[0] = mPositionSet[!(mValueAndRemainder.rem & 0b1)];
@@ -80,49 +109,40 @@ private:
         return positionValue;
     }
 
-    static consteval int64_t ConstFactorialRange(int64_t min, int64_t max)
-    {
-        int64_t value = min == 0 ? 1 : min;
-        for (; max > min; --max)
-        {
-            value *= max;
-        }
-        return value;
-    }
 
-    template<int64_t Max>
+    template<int64_t Increment>
     static consteval int64_t ConstMax(int64_t value)
     {
-        return (value > Max) ? Max : value;
+        return (value > Increment) ? Increment : value;
     }
 
-    template<int64_t Min, int64_t Max>
+    template<int64_t Min, int64_t Increment>
     static constexpr int64_t FactorialRange(int64_t m)
     {
         switch (m)
         {
         // Uncomment this to see the constexpr fail for running out of bit space
         // case (Min + 21): return ConstFactorialRange(Min, ConstMax<Max + 1>(Min + 21));
-        case (Min + 20): return ConstFactorialRange(Min, ConstMax<Max>(Min + 20));
-        case (Min + 19): return ConstFactorialRange(Min, ConstMax<Max>(Min + 19));
-        case (Min + 18): return ConstFactorialRange(Min, ConstMax<Max>(Min + 18));
-        case (Min + 17): return ConstFactorialRange(Min, ConstMax<Max>(Min + 17));
-        case (Min + 16): return ConstFactorialRange(Min, ConstMax<Max>(Min + 16));
-        case (Min + 15): return ConstFactorialRange(Min, ConstMax<Max>(Min + 15));
-        case (Min + 14): return ConstFactorialRange(Min, ConstMax<Max>(Min + 14));
-        case (Min + 13): return ConstFactorialRange(Min, ConstMax<Max>(Min + 13));
-        case (Min + 12): return ConstFactorialRange(Min, ConstMax<Max>(Min + 12));
-        case (Min + 11): return ConstFactorialRange(Min, ConstMax<Max>(Min + 11));
-        case (Min + 10): return ConstFactorialRange(Min, ConstMax<Max>(Min + 10));
-        case (Min + 9 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 9 ));
-        case (Min + 8 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 8 ));
-        case (Min + 7 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 7 ));
-        case (Min + 6 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 6 ));
-        case (Min + 5 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 5 ));
-        case (Min + 4 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 4 ));
-        case (Min + 3 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 3 ));
-        case (Min + 2 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 2 ));
-        case (Min + 1 ): return ConstFactorialRange(Min, ConstMax<Max>(Min + 1 ));
+        case (Min + 20): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 20));
+        case (Min + 19): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 19));
+        case (Min + 18): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 18));
+        case (Min + 17): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 17));
+        case (Min + 16): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 16));
+        case (Min + 15): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 15));
+        case (Min + 14): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 14));
+        case (Min + 13): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 13));
+        case (Min + 12): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 12));
+        case (Min + 11): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 11));
+        case (Min + 10): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 10));
+        case (Min + 9 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 9 ));
+        case (Min + 8 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 8 ));
+        case (Min + 7 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 7 ));
+        case (Min + 6 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 6 ));
+        case (Min + 5 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 5 ));
+        case (Min + 4 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 4 ));
+        case (Min + 3 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 3 ));
+        case (Min + 2 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 2 ));
+        case (Min + 1 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 1 ));
         case (Min): return ConstFactorialRange(Min, Min);
         default: return 1;
         }
@@ -155,7 +175,7 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Combinato
     if (mSetSize <= kNumCombinatoricIndexes)
     {
         CombinatoricBuilder combinatoricBuilder(mSetSize);
-        combinatoricBuilder.FillStandardBlock(combinatoricBlocks[0], combinatoricRandom);
+        combinatoricBuilder.FillBlock<0>(combinatoricBlocks[0], combinatoricRandom);
         mShuffleMode = ShuffleMode::kCombinatoric;
         return;
     }
@@ -163,18 +183,56 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Combinato
     if (combinatoricBlocks.size() == 1)
     {
         CombinatoricBuilder combinatoricBuilder(mSetSize);
-        combinatoricBuilder.FillStandardBlock(combinatoricBlocks[0], combinatoricRandom);
+        combinatoricBuilder.FillBlock<0>(combinatoricBlocks[0], combinatoricRandom);
         mCombinatoricMultiplier = mSetSize / kNumCombinatoricIndexes;
         mShuffleMode = ShuffleMode::kRepeatedShuffling;
         return;
     }
 
+    if (combinatoricBlocks.size() <= CombinatoricBuilder<>::kBlockConfigs.size())
+    {
+        for (int64_t blockIndex = combinatoricBlocks.size() - 1; blockIndex >= 0; --blockIndex)
+        {
+            if (mSetSize <= CombinatoricBuilder<>::kBlockConfigs[blockIndex].Max)
+            {
+                CombinatoricBuilder<SetRandomizerInternal::kNumCombinatoricIndexesExtended> combinatoricBuilder(mSetSize);
+                switch (blockIndex)
+                {
+                case 12: combinatoricBuilder.FillBlock<12>(combinatoricBlocks[12], MakeRandom());
+                case 11: combinatoricBuilder.FillBlock<11>(combinatoricBlocks[11], MakeRandom());
+                case 10: combinatoricBuilder.FillBlock<10>(combinatoricBlocks[10], MakeRandom());
+                case 9 : combinatoricBuilder.FillBlock<9 >(combinatoricBlocks[9 ], MakeRandom());
+                case 8 : combinatoricBuilder.FillBlock<8 >(combinatoricBlocks[8 ], MakeRandom());
+                case 7 : combinatoricBuilder.FillBlock<7 >(combinatoricBlocks[7 ], MakeRandom());
+                case 6 : combinatoricBuilder.FillBlock<6 >(combinatoricBlocks[6 ], MakeRandom());
+                case 5 : combinatoricBuilder.FillBlock<5 >(combinatoricBlocks[5 ], MakeRandom());
+                case 4 : combinatoricBuilder.FillBlock<4 >(combinatoricBlocks[4 ], MakeRandom());
+                case 3 : combinatoricBuilder.FillBlock<3 >(combinatoricBlocks[3 ], MakeRandom());
+                case 2 : combinatoricBuilder.FillBlock<2 >(combinatoricBlocks[2 ], MakeRandom());
+                case 1 : combinatoricBuilder.FillBlock<1 >(combinatoricBlocks[1 ], MakeRandom());
+                case 0 :
+                {
+                    combinatoricBuilder.FillBlock<0>(combinatoricBlocks[0], combinatoricRandom);
+                    mShuffleMode = ShuffleMode::kCombinatoricExtended;
+                    return;
+                }
+                default:
+                {
+                    mShuffleMode = ShuffleMode::kNone;
+                    return;
+                }
+                }
+            }
+        }
+    }
+
+    /*
     if (mSetSize <= SetRandomizerInternal::kNumCombinatoricIndexesExtended)
     {
         const int64_t combinatoricRandom2 = ((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc();
         CombinatoricBuilder<SetRandomizerInternal::kNumCombinatoricIndexesExtended> combinatoricBuilder(mSetSize);
-        combinatoricBuilder.FillExtendedBlock(combinatoricBlocks[1], combinatoricRandom2);
-        combinatoricBuilder.FillStandardBlock(combinatoricBlocks[0], combinatoricRandom);
+        combinatoricBuilder.FillBlock<1>(combinatoricBlocks[1], combinatoricRandom2);
+        combinatoricBuilder.FillBlock<0>(combinatoricBlocks[0], combinatoricRandom);
 
         mShuffleMode = ShuffleMode::kCombinatoricExtended;
         return;
@@ -185,13 +243,14 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Combinato
         const int64_t combinatoricRandom2 = ((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc();
         const int64_t combinatoricRandom3 = ((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc();
         CombinatoricBuilder<SetRandomizerInternal::kNumCombinatoricIndexesExtendedExtended> combinatoricBuilder(mSetSize);
-        combinatoricBuilder.FillExtendedExtendedBlock(combinatoricBlocks[2], combinatoricRandom3);
-        combinatoricBuilder.FillExtendedBlock(combinatoricBlocks[1], combinatoricRandom2);
-        combinatoricBuilder.FillStandardBlock(combinatoricBlocks[0], combinatoricRandom);
+        combinatoricBuilder.FillBlock<2>(combinatoricBlocks[2], combinatoricRandom3);
+        combinatoricBuilder.FillBlock<1>(combinatoricBlocks[1], combinatoricRandom2);
+        combinatoricBuilder.FillBlock<0>(combinatoricBlocks[0], combinatoricRandom);
 
         mShuffleMode = ShuffleMode::kCombinatoricExtendedExtended;
         return;
     }
+    */
 
     // mSetSize > 1 && all other options exhausted
     {
@@ -200,7 +259,7 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Combinato
         {
             const int64_t combinatoricRandomEx = ((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc();
             CombinatoricBuilder combinatoricBuilder(mSetSize);
-            combinatoricBuilder.FillStandardBlock(combinatoricBlock, combinatoricRandomEx);
+            combinatoricBuilder.FillBlock<0>(combinatoricBlock, combinatoricRandomEx);
         }
 
         mShuffleMode = ShuffleMode::kRepeatedShufflingWithBlockMixing;
@@ -274,6 +333,20 @@ uint32_t SetRandomizerInternal::GetWheeledIndex(uint32_t index, std::span<const 
     case ShuffleMode::kCombinatoric:
         return combinatoricBlocks[0][index];
 
+
+    case ShuffleMode::kCombinatoricExtended:
+    {
+        for (int64_t blockIndex = 0; blockIndex < (int64_t)combinatoricBlocks.size(); ++blockIndex)
+        {
+            if (index < CombinatoricBuilder<>::kBlockConfigs[blockIndex].Max)
+            {
+                return combinatoricBlocks[blockIndex][index - CombinatoricBuilder<>::kBlockConfigs[blockIndex].Min];
+            }
+        }
+        return index;
+    }
+
+    /*
     case ShuffleMode::kCombinatoricExtended:
     {
         if (index >= kNumCombinatoricIndexes) [[unlikely]]
@@ -295,6 +368,7 @@ uint32_t SetRandomizerInternal::GetWheeledIndex(uint32_t index, std::span<const 
         }
         return combinatoricBlocks[0][index];
     }
+    */
 
     /**
      * For both RepeatedShuffling types:
@@ -322,4 +396,9 @@ uint32_t SetRandomizerInternal::GetWheeledIndex(uint32_t index, std::span<const 
         return RepeatedShuffling<true>(mSetSize, index, mCombinatoricMultiplier, combinatoricBlocks);
     }
     }
+}
+
+int64_t SetRandomizerInternal::MakeRandom() const
+{
+    return ((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc();
 }

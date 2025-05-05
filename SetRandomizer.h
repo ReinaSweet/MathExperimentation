@@ -16,6 +16,7 @@ private:
 
     void Randomize(std::span<SetRandomizerInternal::CombinatoricBlock> combinatoricBlocks);
     uint32_t GetWheeledIndex(uint32_t index, std::span<const SetRandomizerInternal::CombinatoricBlock> combinatoricBlocks) const;
+    int64_t MakeRandom() const;
 
     enum class ShuffleMode : uint8_t
     {
