@@ -59,6 +59,7 @@ public:
     }
 
     uint32_t GetSetSize() const { return mInternalRandomizer.mSetSize; }
+    consteval size_t GetNumBlocks() const { return CombinatoricBlocks; }
 
 private:
     SetRandomizerInternal mInternalRandomizer;

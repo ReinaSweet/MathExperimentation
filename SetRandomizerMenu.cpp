@@ -101,7 +101,7 @@ namespace
         }
         putchar('/');
 
-        printf("\nNum Errors: %u, Time: %uns", numErrors, totalTime);
+        printf("\n^ SetSize: %llu, Blocks: %u, Num Errors: %u, Time: %uns", setSize, (uint32_t)Blocks, numErrors, totalTime);
     }
 }
 
@@ -124,6 +124,7 @@ SetRandomizerMenu::SetRandomizerMenu(const char* const input, ConsoleMenu& paren
     mMenuVisualize.AddCommand("da", "Set Size 1783 (1 block)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_1, this, 1783)));
     mMenuVisualize.AddCommand("db", "Set Size 1783 (2 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_2, this, 1783)));
     mMenuVisualize.AddCommand("dc", "Set Size 1783 (3 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_3, this, 1783)));
+    mMenuVisualize.AddCommand("tv", "Test Various", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_TestVarious, this)));
 }
 
 void SetRandomizerMenu::Cmd_VisualizeN_1(uint64_t n)
@@ -145,6 +146,23 @@ void SetRandomizerMenu::Cmd_VisualizeN_3(uint64_t n)
     Reseed();
     SetRandomizer<3> randomizer(&RandomNumber, (uint32_t)n);
     PrintRandomizer(randomizer);
+}
+
+void SetRandomizerMenu::Cmd_TestVarious()
+{
+    Cmd_VisualizeN_1(0);  printf("\n\n");
+    Cmd_VisualizeN_1(1);  printf("\n\n");
+    Cmd_VisualizeN_1(2);  printf("\n\n");
+    Cmd_VisualizeN_1(3);  printf("\n\n");
+    Cmd_VisualizeN_1(19); printf("\n\n");
+    Cmd_VisualizeN_1(20); printf("\n\n");
+    Cmd_VisualizeN_1(21); printf("\n\n");
+    Cmd_VisualizeN_1(31); printf("\n\n");
+    Cmd_VisualizeN_1(32); printf("\n\n");
+    Cmd_VisualizeN_1(33); printf("\n\n");
+    Cmd_VisualizeN_2(31); printf("\n\n");
+    Cmd_VisualizeN_2(32); printf("\n\n");
+    Cmd_VisualizeN_2(33); printf("\n\n");
 }
 
 void SetRandomizerMenu::Reseed()

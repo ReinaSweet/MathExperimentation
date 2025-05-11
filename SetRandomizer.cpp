@@ -223,32 +223,6 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Combinato
         }
     }
 
-    /*
-    if (mSetSize <= SetRandomizerInternal::kNumCombinatoricIndexesExtended)
-    {
-        const int64_t combinatoricRandom2 = ((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc();
-        CombinatoricBuilder<SetRandomizerInternal::kNumCombinatoricIndexesExtended> combinatoricBuilder(mSetSize);
-        combinatoricBuilder.FillBlock<1>(combinatoricBlocks[1], combinatoricRandom2);
-        combinatoricBuilder.FillBlock<0>(combinatoricBlocks[0], combinatoricRandom);
-
-        mShuffleMode = ShuffleMode::kCombinatoricExtended;
-        return;
-    }
-
-    if (combinatoricBlocks.size() > 2 && mSetSize <= SetRandomizerInternal::kNumCombinatoricIndexesExtendedExtended)
-    {
-        const int64_t combinatoricRandom2 = ((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc();
-        const int64_t combinatoricRandom3 = ((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc();
-        CombinatoricBuilder<SetRandomizerInternal::kNumCombinatoricIndexesExtendedExtended> combinatoricBuilder(mSetSize);
-        combinatoricBuilder.FillBlock<2>(combinatoricBlocks[2], combinatoricRandom3);
-        combinatoricBuilder.FillBlock<1>(combinatoricBlocks[1], combinatoricRandom2);
-        combinatoricBuilder.FillBlock<0>(combinatoricBlocks[0], combinatoricRandom);
-
-        mShuffleMode = ShuffleMode::kCombinatoricExtendedExtended;
-        return;
-    }
-    */
-
     // mSetSize > 1 && all other options exhausted
     {
         mCombinatoricMultiplier = mSetSize / kNumCombinatoricIndexes;
@@ -371,30 +345,6 @@ uint32_t SetRandomizerInternal::GetWheeledIndex(uint32_t index, std::span<const 
         }
         return index;
     }
-
-    /*
-    case ShuffleMode::kCombinatoricExtended:
-    {
-        if (index >= kNumCombinatoricIndexes) [[unlikely]]
-        {
-            return combinatoricBlocks[1][index - kNumCombinatoricIndexes];
-        }
-        return combinatoricBlocks[0][index];
-    }
-
-    case ShuffleMode::kCombinatoricExtendedExtended:
-    {
-        if (index >= kNumCombinatoricIndexesExtended) [[unlikely]]
-        {
-            return combinatoricBlocks[2][index - kNumCombinatoricIndexesExtended];
-        }
-        if (index >= kNumCombinatoricIndexes) [[unlikely]]
-        {
-            return combinatoricBlocks[1][index - kNumCombinatoricIndexes];
-        }
-        return combinatoricBlocks[0][index];
-    }
-    */
 
     /**
      * For both RepeatedShuffling types:
