@@ -4,15 +4,48 @@
 #include <cstring>
 #include <cstdlib>
 
-/**
- * Build an indexed permutation sequence for our current random seed
- * See: https://oeis.org/A030299 (but off by 1)
- */
-template<size_t NumPositions = SetRandomizerInternal::kNumCombinatoricIndexes>
-class CombinatoricBuilder
+
+namespace Factoradics
 {
-private:
-    static consteval int64_t ConstFactorialRange(int64_t min, int64_t max)
+    struct Block
+    {
+        int64_t Min;
+        int64_t Max;
+        bool CoinflipFinalTwo;
+    };
+
+    template<int64_t Min, int64_t Increment, bool CoinflipFinalTwo = false>
+    consteval Block DeclareBlock()
+    {
+        return Block{ Min, Min + Increment, CoinflipFinalTwo };
+    }
+
+    constexpr std::array<Block, 13> cBlocks
+    {
+        DeclareBlock<0, 20, true>(),
+        DeclareBlock<20, 12>(),
+        DeclareBlock<32, 11>(),
+        DeclareBlock<43, 10>(),
+
+        DeclareBlock<53, 9>(),
+        DeclareBlock<62, 9>(),
+        DeclareBlock<71, 9>(),
+
+        DeclareBlock<80, 8>(),
+        DeclareBlock<88, 8>(),
+        DeclareBlock<96, 8>(),
+        DeclareBlock<104, 8>(),
+        DeclareBlock<112, 8>(),
+        DeclareBlock<120, 8>()
+    };
+
+    template<int64_t Max>
+    consteval int64_t ConstMax(int64_t value)
+    {
+        return (value > Max) ? Max : value;
+    }
+
+    consteval int64_t ConstFactorialRange(int64_t min, int64_t max)
     {
         int64_t value = min == 0 ? 1 : min;
         for (; max > min; --max)
@@ -22,9 +55,49 @@ private:
         return value;
     }
 
+    template<int64_t Min, int64_t Max>
+    constexpr int64_t FactorialRange(int64_t m)
+    {
+        switch (m)
+        {
+        // Uncomment this to see the constexpr fail for running out of bit space
+        // case (Min + 21): return ConstFactorialRange(Min, ConstMax<Max + 1>(Min + 21));
+        case (Min + 20): return ConstFactorialRange(Min, ConstMax<Max>(Min + 20));
+        case (Min + 19): return ConstFactorialRange(Min, ConstMax<Max>(Min + 19));
+        case (Min + 18): return ConstFactorialRange(Min, ConstMax<Max>(Min + 18));
+        case (Min + 17): return ConstFactorialRange(Min, ConstMax<Max>(Min + 17));
+        case (Min + 16): return ConstFactorialRange(Min, ConstMax<Max>(Min + 16));
+        case (Min + 15): return ConstFactorialRange(Min, ConstMax<Max>(Min + 15));
+        case (Min + 14): return ConstFactorialRange(Min, ConstMax<Max>(Min + 14));
+        case (Min + 13): return ConstFactorialRange(Min, ConstMax<Max>(Min + 13));
+        case (Min + 12): return ConstFactorialRange(Min, ConstMax<Max>(Min + 12));
+        case (Min + 11): return ConstFactorialRange(Min, ConstMax<Max>(Min + 11));
+        case (Min + 10): return ConstFactorialRange(Min, ConstMax<Max>(Min + 10));
+        case (Min + 9): return ConstFactorialRange(Min, ConstMax<Max>(Min + 9));
+        case (Min + 8): return ConstFactorialRange(Min, ConstMax<Max>(Min + 8));
+        case (Min + 7): return ConstFactorialRange(Min, ConstMax<Max>(Min + 7));
+        case (Min + 6): return ConstFactorialRange(Min, ConstMax<Max>(Min + 6));
+        case (Min + 5): return ConstFactorialRange(Min, ConstMax<Max>(Min + 5));
+        case (Min + 4): return ConstFactorialRange(Min, ConstMax<Max>(Min + 4));
+        case (Min + 3): return ConstFactorialRange(Min, ConstMax<Max>(Min + 3));
+        case (Min + 2): return ConstFactorialRange(Min, ConstMax<Max>(Min + 2));
+        case (Min + 1): return ConstFactorialRange(Min, ConstMax<Max>(Min + 1));
+        case (Min): return ConstFactorialRange(Min, Min);
+        default: return 1;
+        }
+    }
+};
+
+/**
+ * Build an indexed permutation sequence for our current random seed
+ * See: https://oeis.org/A030299 (but off by 1)
+ */
+template<size_t tNumPositions = SetRandomizerInternal::kNumCombinatoricIndexes>
+class CombinatoricBuilder
+{
 public:
     CombinatoricBuilder(int32_t setSize)
-        : mNextCombinatoricSize(setSize > NumPositions ? NumPositions : setSize)
+        : mNextCombinatoricSize(setSize > tNumPositions ? tNumPositions : setSize)
         , mValueAndRemainder{0,0}
     {
         for (uint8_t i = 0; i < mNextCombinatoricSize; ++i)
@@ -33,58 +106,24 @@ public:
         }
     }
 
-    struct BlockConfig
-    {
-        int64_t Min;
-        int64_t Max;
-        bool CoinflipFinalTwo;
-    };
-    template<int64_t Min, int64_t Increment, bool CoinflipFinalTwo = false>
-    static consteval BlockConfig Config()
-    {
-        static_assert(ConstFactorialRange(Min, Min + Increment) > 0, "Min & Max can't fit in int64_t (see: ConstFactorialRange)");
-        return BlockConfig{Min, Min + Increment, CoinflipFinalTwo};
-    }
-
-    static constexpr std::array<BlockConfig, 13> kBlockConfigs
-    {
-        Config<0, 20, true>(),
-        Config<20, 12>(),
-        Config<32, 11>(),
-        Config<43, 10>(),
-
-        // 9
-        Config<53, 9>(),
-        Config<62, 9>(),
-        Config<71, 9>(),
-
-        // 8
-        Config<80, 8>(),
-        Config<88, 8>(),
-        Config<96, 8>(),
-        Config<104, 8>(),
-        Config<112, 8>(),
-        Config<120, 8>()
-    };
-
-    template<size_t BlockIndex, BlockConfig Config = kBlockConfigs[BlockIndex]>
+    template<size_t tBlockIndex, Factoradics::Block tBlock = Factoradics::cBlocks[tBlockIndex]>
     void FillBlock(SetRandomizerInternal::CombinatoricBlock& combinatoricIndexes, int64_t combinatoricRandom)
     {
-        mValueAndRemainder = { 0, combinatoricRandom % FactorialRange<Config.Min, Config.Max>(mNextCombinatoricSize)};
+        mValueAndRemainder = { 0, combinatoricRandom % Factoradics::FactorialRange<tBlock.Min, tBlock.Max>(mNextCombinatoricSize)};
 
         --mNextCombinatoricSize;
-        mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRange<Config.Min, Config.Max>(mNextCombinatoricSize));
-        combinatoricIndexes[mNextCombinatoricSize - Config.Min] = GetAndRemovePosition_Careful(mValueAndRemainder.quot);
+        mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, Factoradics::FactorialRange<tBlock.Min, tBlock.Max>(mNextCombinatoricSize));
+        combinatoricIndexes[mNextCombinatoricSize - tBlock.Min] = GetAndRemovePosition_Careful(mValueAndRemainder.quot);
 
-        constexpr int64_t LoopMin = (Config.Min + ((int64_t)Config.CoinflipFinalTwo * 2));
-        while (mNextCombinatoricSize > LoopMin)
+        constexpr int64_t cLoopMin = (tBlock.Min + ((int64_t)tBlock.CoinflipFinalTwo * 2));
+        while (mNextCombinatoricSize > cLoopMin)
         {
             --mNextCombinatoricSize;
-            mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRange<Config.Min, Config.Max>(mNextCombinatoricSize));
-            combinatoricIndexes[mNextCombinatoricSize - Config.Min] = GetAndRemovePosition_Fast(mValueAndRemainder.quot);
+            mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, Factoradics::FactorialRange<tBlock.Min, tBlock.Max>(mNextCombinatoricSize));
+            combinatoricIndexes[mNextCombinatoricSize - tBlock.Min] = GetAndRemovePosition_Fast(mValueAndRemainder.quot);
         }
 
-        if constexpr (Config.CoinflipFinalTwo)
+        if constexpr (tBlock.CoinflipFinalTwo)
         {
             combinatoricIndexes[1] = mPositionSet[mValueAndRemainder.rem & 0b1];
             combinatoricIndexes[0] = mPositionSet[!(mValueAndRemainder.rem & 0b1)];
@@ -95,7 +134,7 @@ private:
     inline uint8_t GetAndRemovePosition_Fast(int64_t position)
     {
         const uint8_t positionValue = mPositionSet[position];
-        memmove(&mPositionSet[position], &mPositionSet[position + 1], (NumPositions - position) * sizeof(uint8_t));
+        memmove(&mPositionSet[position], &mPositionSet[position + 1], (tNumPositions - position) * sizeof(uint8_t));
         return positionValue;
     }
 
@@ -104,51 +143,12 @@ private:
         const uint8_t positionValue = mPositionSet[position];
         if ((position + 1) < (int64_t)mPositionSet.size())
         {
-            memmove(&mPositionSet[position], &mPositionSet[position + 1], (NumPositions - position) * sizeof(uint8_t));
+            memmove(&mPositionSet[position], &mPositionSet[position + 1], (tNumPositions - position) * sizeof(uint8_t));
         }
         return positionValue;
     }
 
-
-    template<int64_t Increment>
-    static consteval int64_t ConstMax(int64_t value)
-    {
-        return (value > Increment) ? Increment : value;
-    }
-
-    template<int64_t Min, int64_t Increment>
-    static constexpr int64_t FactorialRange(int64_t m)
-    {
-        switch (m)
-        {
-        // Uncomment this to see the constexpr fail for running out of bit space
-        // case (Min + 21): return ConstFactorialRange(Min, ConstMax<Max + 1>(Min + 21));
-        case (Min + 20): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 20));
-        case (Min + 19): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 19));
-        case (Min + 18): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 18));
-        case (Min + 17): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 17));
-        case (Min + 16): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 16));
-        case (Min + 15): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 15));
-        case (Min + 14): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 14));
-        case (Min + 13): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 13));
-        case (Min + 12): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 12));
-        case (Min + 11): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 11));
-        case (Min + 10): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 10));
-        case (Min + 9 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 9 ));
-        case (Min + 8 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 8 ));
-        case (Min + 7 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 7 ));
-        case (Min + 6 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 6 ));
-        case (Min + 5 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 5 ));
-        case (Min + 4 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 4 ));
-        case (Min + 3 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 3 ));
-        case (Min + 2 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 2 ));
-        case (Min + 1 ): return ConstFactorialRange(Min, ConstMax<Increment>(Min + 1 ));
-        case (Min): return ConstFactorialRange(Min, Min);
-        default: return 1;
-        }
-    }
-
-    std::array<uint8_t, NumPositions> mPositionSet;
+    std::array<uint8_t, tNumPositions> mPositionSet;
     int64_t mNextCombinatoricSize;
     std::lldiv_t mValueAndRemainder;
 };
@@ -189,11 +189,11 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Combinato
         return;
     }
 
-    if (combinatoricBlocks.size() <= CombinatoricBuilder<>::kBlockConfigs.size())
+    if (combinatoricBlocks.size() <= Factoradics::cBlocks.size())
     {
         for (int64_t blockIndex = combinatoricBlocks.size() - 1; blockIndex >= 0; --blockIndex)
         {
-            if (mSetSize <= CombinatoricBuilder<>::kBlockConfigs[blockIndex].Max)
+            if (mSetSize <= Factoradics::cBlocks[blockIndex].Max)
             {
                 CombinatoricBuilder<SetRandomizerInternal::kNumCombinatoricIndexesExtended> combinatoricBuilder(mSetSize);
                 switch (blockIndex)
@@ -338,9 +338,9 @@ uint32_t SetRandomizerInternal::GetWheeledIndex(uint32_t index, std::span<const 
     {
         for (int64_t blockIndex = 0; blockIndex < (int64_t)combinatoricBlocks.size(); ++blockIndex)
         {
-            if (index < CombinatoricBuilder<>::kBlockConfigs[blockIndex].Max)
+            if (index < Factoradics::cBlocks[blockIndex].Max)
             {
-                return combinatoricBlocks[blockIndex][index - CombinatoricBuilder<>::kBlockConfigs[blockIndex].Min];
+                return combinatoricBlocks[blockIndex][index - Factoradics::cBlocks[blockIndex].Min];
             }
         }
         return index;
