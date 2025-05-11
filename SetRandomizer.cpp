@@ -92,12 +92,12 @@ namespace Factoradics
  * Build an indexed permutation sequence for our current random seed
  * See: https://oeis.org/A030299 (but off by 1)
  */
-template<size_t tNumPositions = SetRandomizerInternal::kNumCombinatoricIndexes>
+template<size_t tMaxBlockIndex, Factoradics::Block tMaxBlock = Factoradics::cBlocks[tMaxBlockIndex]>
 class CombinatoricBuilder
 {
 public:
     CombinatoricBuilder(int32_t setSize)
-        : mNextCombinatoricSize(setSize > tNumPositions ? tNumPositions : setSize)
+        : mNextCombinatoricSize(setSize > tMaxBlock.Max ? tMaxBlock.Max : setSize)
         , mValueAndRemainder{0,0}
     {
         for (uint8_t i = 0; i < mNextCombinatoricSize; ++i)
@@ -130,25 +130,47 @@ public:
         }
     }
 
+    void FillAllBlocks(std::span<SetRandomizerInternal::CombinatoricBlock> combinatoricBlocks, std::span<int64_t> randomBits)
+    {
+        switch (combinatoricBlocks.size())
+        {
+        case 13: FillBlock<12>(combinatoricBlocks[12], randomBits[12]); [[fallthrough]];
+        case 12: FillBlock<11>(combinatoricBlocks[11], randomBits[11]); [[fallthrough]];
+        case 11: FillBlock<10>(combinatoricBlocks[10], randomBits[10]); [[fallthrough]];
+        case 10: FillBlock< 9>(combinatoricBlocks[9], randomBits[9]); [[fallthrough]];
+        case  9: FillBlock< 8>(combinatoricBlocks[8], randomBits[8]); [[fallthrough]];
+        case  8: FillBlock< 7>(combinatoricBlocks[7], randomBits[7]); [[fallthrough]];
+        case  7: FillBlock< 6>(combinatoricBlocks[6], randomBits[6]); [[fallthrough]];
+        case  6: FillBlock< 5>(combinatoricBlocks[5], randomBits[5]); [[fallthrough]];
+        case  5: FillBlock< 4>(combinatoricBlocks[4], randomBits[4]); [[fallthrough]];
+        case  4: FillBlock< 3>(combinatoricBlocks[3], randomBits[3]); [[fallthrough]];
+        case  3: FillBlock< 2>(combinatoricBlocks[2], randomBits[2]); [[fallthrough]];
+        case  2: FillBlock< 1>(combinatoricBlocks[1], randomBits[1]); [[fallthrough]];
+        case  1: FillBlock< 0>(combinatoricBlocks[0], randomBits[0]); [[fallthrough]];
+        default:
+            break;
+        }
+    }
+
 private:
     inline uint8_t GetAndRemovePosition_Fast(int64_t position)
     {
         const uint8_t positionValue = mPositionSet[position];
-        memmove(&mPositionSet[position], &mPositionSet[position + 1], (tNumPositions - position) * sizeof(uint8_t));
+        memmove(&mPositionSet[position], &mPositionSet[position + 1], (tMaxBlock.Max - position) * sizeof(uint8_t));
         return positionValue;
     }
 
     inline uint8_t GetAndRemovePosition_Careful(int64_t position)
     {
         const uint8_t positionValue = mPositionSet[position];
-        if ((position + 1) < (int64_t)mPositionSet.size())
+        if ((position + 1) < tMaxBlock.Max)
         {
-            memmove(&mPositionSet[position], &mPositionSet[position + 1], (tNumPositions - position) * sizeof(uint8_t));
+            memmove(&mPositionSet[position], &mPositionSet[position + 1], (tMaxBlock.Max - position) * sizeof(uint8_t));
         }
         return positionValue;
     }
 
-    std::array<uint8_t, tNumPositions> mPositionSet;
+    std::array<uint8_t, tMaxBlock.Max> mPositionSet;
     int64_t mNextCombinatoricSize;
     std::lldiv_t mValueAndRemainder;
 };
@@ -172,9 +194,9 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Combinato
         return;
     }
 
-    if (mSetSize <= kNumCombinatoricIndexes)
+    if (mSetSize <= Factoradics::cBlocks[0].Max)
     {
-        CombinatoricBuilder combinatoricBuilder(mSetSize);
+        CombinatoricBuilder<0> combinatoricBuilder(mSetSize);
         combinatoricBuilder.FillBlock<0>(combinatoricBlocks[0], combinatoricRandom);
         mShuffleMode = ShuffleMode::kCombinatoric;
         return;
@@ -182,7 +204,7 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Combinato
 
     if (combinatoricBlocks.size() == 1)
     {
-        CombinatoricBuilder combinatoricBuilder(mSetSize);
+        CombinatoricBuilder<0> combinatoricBuilder(mSetSize);
         combinatoricBuilder.FillBlock<0>(combinatoricBlocks[0], combinatoricRandom);
         mCombinatoricMultiplier = mSetSize / kNumCombinatoricIndexes;
         mShuffleMode = ShuffleMode::kRepeatedShuffling;
@@ -195,33 +217,8 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Combinato
         {
             if (mSetSize <= Factoradics::cBlocks[blockIndex].Max)
             {
-                CombinatoricBuilder<SetRandomizerInternal::kNumCombinatoricIndexesExtended> combinatoricBuilder(mSetSize);
-                switch (blockIndex)
-                {
-                case 12: combinatoricBuilder.FillBlock<12>(combinatoricBlocks[12], MakeRandom());
-                case 11: combinatoricBuilder.FillBlock<11>(combinatoricBlocks[11], MakeRandom());
-                case 10: combinatoricBuilder.FillBlock<10>(combinatoricBlocks[10], MakeRandom());
-                case 9 : combinatoricBuilder.FillBlock<9 >(combinatoricBlocks[9 ], MakeRandom());
-                case 8 : combinatoricBuilder.FillBlock<8 >(combinatoricBlocks[8 ], MakeRandom());
-                case 7 : combinatoricBuilder.FillBlock<7 >(combinatoricBlocks[7 ], MakeRandom());
-                case 6 : combinatoricBuilder.FillBlock<6 >(combinatoricBlocks[6 ], MakeRandom());
-                case 5 : combinatoricBuilder.FillBlock<5 >(combinatoricBlocks[5 ], MakeRandom());
-                case 4 : combinatoricBuilder.FillBlock<4 >(combinatoricBlocks[4 ], MakeRandom());
-                case 3 : combinatoricBuilder.FillBlock<3 >(combinatoricBlocks[3 ], MakeRandom());
-                case 2 : combinatoricBuilder.FillBlock<2 >(combinatoricBlocks[2 ], MakeRandom());
-                case 1 : combinatoricBuilder.FillBlock<1 >(combinatoricBlocks[1 ], MakeRandom());
-                case 0 :
-                {
-                    combinatoricBuilder.FillBlock<0>(combinatoricBlocks[0], combinatoricRandom);
-                    mShuffleMode = ShuffleMode::kCombinatoricExtended;
-                    return;
-                }
-                default:
-                {
-                    mShuffleMode = ShuffleMode::kNone;
-                    return;
-                }
-                }
+                FillWithPermutationExtended(blockIndex, combinatoricBlocks);
+                return;
             }
         }
     }
@@ -258,11 +255,40 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Combinato
         for (SetRandomizerInternal::CombinatoricBlock& combinatoricBlock : combinatoricBlocks)
         {
             const int64_t combinatoricRandomEx = ((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc();
-            CombinatoricBuilder combinatoricBuilder(mSetSize);
+            CombinatoricBuilder<0> combinatoricBuilder(mSetSize);
             combinatoricBuilder.FillBlock<0>(combinatoricBlock, combinatoricRandomEx);
         }
 
         mShuffleMode = ShuffleMode::kRepeatedShufflingWithBlockMixing;
+    }
+}
+
+void SetRandomizerInternal::FillWithPermutationExtended(size_t maxBlockIndex, std::span<SetRandomizerInternal::CombinatoricBlock>& combinatoricBlocks)
+{
+    mShuffleMode = ShuffleMode::kCombinatoricExtended;
+
+    std::vector<int64_t> randomBits;
+    randomBits.reserve(maxBlockIndex + 1);
+    for (size_t i = 0; i <= maxBlockIndex; ++i)
+    {
+        randomBits.push_back(MakeRandom());
+    }
+    switch (maxBlockIndex)
+    {
+    case 12: { CombinatoricBuilder<12> builder(mSetSize); builder.FillAllBlocks(combinatoricBlocks, randomBits); } break;
+    case 11: { CombinatoricBuilder<11> builder(mSetSize); builder.FillAllBlocks(combinatoricBlocks, randomBits); } break;
+    case 10: { CombinatoricBuilder<10> builder(mSetSize); builder.FillAllBlocks(combinatoricBlocks, randomBits); } break;
+    case  9: { CombinatoricBuilder< 9> builder(mSetSize); builder.FillAllBlocks(combinatoricBlocks, randomBits); } break;
+    case  8: { CombinatoricBuilder< 8> builder(mSetSize); builder.FillAllBlocks(combinatoricBlocks, randomBits); } break;
+    case  7: { CombinatoricBuilder< 7> builder(mSetSize); builder.FillAllBlocks(combinatoricBlocks, randomBits); } break;
+    case  6: { CombinatoricBuilder< 6> builder(mSetSize); builder.FillAllBlocks(combinatoricBlocks, randomBits); } break;
+    case  5: { CombinatoricBuilder< 5> builder(mSetSize); builder.FillAllBlocks(combinatoricBlocks, randomBits); } break;
+    case  4: { CombinatoricBuilder< 4> builder(mSetSize); builder.FillAllBlocks(combinatoricBlocks, randomBits); } break;
+    case  3: { CombinatoricBuilder< 3> builder(mSetSize); builder.FillAllBlocks(combinatoricBlocks, randomBits); } break;
+    case  2: { CombinatoricBuilder< 2> builder(mSetSize); builder.FillAllBlocks(combinatoricBlocks, randomBits); } break;
+    case  1: { CombinatoricBuilder< 1> builder(mSetSize); builder.FillAllBlocks(combinatoricBlocks, randomBits); } break;
+    case  0: { CombinatoricBuilder< 0> builder(mSetSize); builder.FillAllBlocks(combinatoricBlocks, randomBits); } break;
+    default: mShuffleMode = ShuffleMode::kNone; break;
     }
 }
 
