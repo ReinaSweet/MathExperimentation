@@ -124,6 +124,8 @@ SetRandomizerMenu::SetRandomizerMenu(const char* const input, ConsoleMenu& paren
     mMenuVisualize.AddCommand("da", "Set Size 1783 (1 block)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_1, this, 1783)));
     mMenuVisualize.AddCommand("db", "Set Size 1783 (2 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_2, this, 1783)));
     mMenuVisualize.AddCommand("dc", "Set Size 1783 (3 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_3, this, 1783)));
+    mMenuVisualize.AddCommand("sa", "Set Size 128 (13 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_13, this, 128)));
+    mMenuVisualize.AddCommand("wa", "Whatever Set Size You Want (1 block);dSet Size", [this](uint64_t setSize) { Cmd_VisualizeN_1(setSize); });
     mMenuVisualize.AddCommand("tv", "Test Various", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_TestVarious, this)));
 }
 
@@ -145,6 +147,13 @@ void SetRandomizerMenu::Cmd_VisualizeN_3(uint64_t n)
 {
     Reseed();
     SetRandomizer<3> randomizer(&RandomNumber, (uint32_t)n);
+    PrintRandomizer(randomizer);
+}
+
+void SetRandomizerMenu::Cmd_VisualizeN_13(uint64_t n)
+{
+    Reseed();
+    SetRandomizer<13> randomizer(&RandomNumber, (uint32_t)n);
     PrintRandomizer(randomizer);
 }
 
