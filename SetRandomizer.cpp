@@ -5,6 +5,32 @@
 #include <cstdlib>
 #include <numeric>
 
+/**
+* TODO:
+* SIMD exploration
+*   Replace iota
+*   Replace memmove
+* 
+* Unify scalar types
+*   Primary bits should be uint64_t
+* 
+* Bounds check / input protect GetWheeledIndex
+* 
+* Shuffles
+*   Precompute number of shuffles, and determine # more carefully
+*   Allow callers to limit number of shuffles
+*
+* RNG
+*   Document bias in the RNG from modulos that aren't a power of 2
+*   Allow callers to feed obfuscating into the RNG
+*   Remove RNG function. Replace with fed in RNG only
+* 
+* Refactors
+*   Combinatoric --> Permutation
+*   kNumCombinatoricIndexes replaced with Block's Max
+*/
+
+
 namespace Factoradics
 {
     struct Block
@@ -37,6 +63,15 @@ namespace Factoradics
         DeclareBlock<104, 8>(),
         DeclareBlock<112, 8>(),
         DeclareBlock<120, 8>()
+
+        /**
+        * Blocks can be extended beyond here, but the number of added indexes per block becomes rather inefficient
+        * Each added block must also be fit into two switch statements further in the code. These are marked:
+        * [Factoradics::Block Limited]
+        * 
+        * This setup is relied upon to calculate the factorials at compile time
+        * so be wary of compile times if the number of blocks is increased
+        */
     };
 
     template<int64_t Max>
@@ -131,6 +166,7 @@ public:
     {
         switch (combinatoricBlocks.size())
         {
+        // [Factoradics::Block Limited]
         case 13: FillBlock<12>(combinatoricBlocks[12], randomBits[12]); [[fallthrough]];
         case 12: FillBlock<11>(combinatoricBlocks[11], randomBits[11]); [[fallthrough]];
         case 11: FillBlock<10>(combinatoricBlocks[10], randomBits[10]); [[fallthrough]];
@@ -246,6 +282,7 @@ void SetRandomizerInternal::FillWithPermutationExtended(size_t maxBlockIndex, st
     }
     switch (maxBlockIndex)
     {
+    // [Factoradics::Block Limited]
     case 12: { CombinatoricBuilder<12> builder(mSetSize); builder.FillAllBlocks(combinatoricBlocks, randomBits); } break;
     case 11: { CombinatoricBuilder<11> builder(mSetSize); builder.FillAllBlocks(combinatoricBlocks, randomBits); } break;
     case 10: { CombinatoricBuilder<10> builder(mSetSize); builder.FillAllBlocks(combinatoricBlocks, randomBits); } break;
