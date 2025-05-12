@@ -3,7 +3,7 @@
 #include <cmath>
 #include <cstring>
 #include <cstdlib>
-
+#include <numeric>
 
 namespace Factoradics
 {
@@ -100,10 +100,7 @@ public:
         : mNextCombinatoricSize(setSize > tMaxBlock.Max ? tMaxBlock.Max : setSize)
         , mValueAndRemainder{0,0}
     {
-        for (uint8_t i = 0; i < mNextCombinatoricSize; ++i)
-        {
-            mPositionSet[i] = i;
-        }
+        std::iota(mPositionSet.begin(), mPositionSet.end(), 0);
     }
 
     template<size_t tBlockIndex, Factoradics::Block tBlock = Factoradics::cBlocks[tBlockIndex]>
