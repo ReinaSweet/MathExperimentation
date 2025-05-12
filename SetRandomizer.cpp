@@ -24,6 +24,7 @@
 *   Document bias in the RNG from modulos that aren't a power of 2
 *   Allow callers to feed obfuscating into the RNG
 *   Remove RNG function. Replace with fed in RNG only
+*   This should also remove the thread-unsafe std::vector
 * 
 * Refactors
 *   Combinatoric --> Permutation
