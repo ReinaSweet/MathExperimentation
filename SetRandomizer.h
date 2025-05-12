@@ -53,13 +53,13 @@ public:
         mInternalRandomizer.Randomize(std::span(mCombinatoricIndexes));
     }
 
-    uint32_t GetWheeledIndex(uint32_t index) const
+    [[nodiscard]] uint32_t GetWheeledIndex(uint32_t index) const
     {
         return mInternalRandomizer.GetWheeledIndex(index, std::span(mCombinatoricIndexes));
     }
 
-    uint32_t GetSetSize() const { return mInternalRandomizer.mSetSize; }
-    consteval size_t GetNumBlocks() const { return CombinatoricBlocks; }
+    [[nodiscard]] uint32_t GetSetSize() const { return mInternalRandomizer.mSetSize; }
+    [[nodiscard]] consteval size_t GetNumBlocks() const { return CombinatoricBlocks; }
 
 private:
     SetRandomizerInternal mInternalRandomizer;
