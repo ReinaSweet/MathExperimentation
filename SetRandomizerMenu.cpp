@@ -125,6 +125,9 @@ SetRandomizerMenu::SetRandomizerMenu(const char* const input, ConsoleMenu& paren
     mMenuVisualize.AddCommand("db", "Set Size 1783 (2 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_2, this, 1783)));
     mMenuVisualize.AddCommand("dc", "Set Size 1783 (3 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_3, this, 1783)));
     mMenuVisualize.AddCommand("sa", "Set Size 128 (13 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_13, this, 128)));
+    mMenuVisualize.AddCommand("za", "Set Size 251 (28 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_28, this, 251)));
+    mMenuVisualize.AddCommand("zb", "Set Size 252 (28 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_28, this, 252)));
+    mMenuVisualize.AddCommand("zc", "Set Size 253 (28 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_28, this, 253)));
     mMenuVisualize.AddCommand("wa", "Whatever Set Size You Want (1 block);dSet Size", [this](uint64_t setSize) { Cmd_VisualizeN_1(setSize); });
     mMenuVisualize.AddCommand("wb", "Whatever Set Size You Want (2 blocks);dSet Size", [this](uint64_t setSize) { Cmd_VisualizeN_2(setSize); });
     mMenuVisualize.AddCommand("wc", "Whatever Set Size You Want (3 blocks);dSet Size", [this](uint64_t setSize) { Cmd_VisualizeN_3(setSize); });
@@ -160,6 +163,13 @@ void SetRandomizerMenu::Cmd_VisualizeN_13(uint64_t n)
     PrintRandomizer(randomizer);
 }
 
+void SetRandomizerMenu::Cmd_VisualizeN_28(uint64_t n)
+{
+    Reseed();
+    SetRandomizer<28> randomizer(&RandomNumber, (uint32_t)n);
+    PrintRandomizer(randomizer);
+}
+
 void SetRandomizerMenu::Cmd_TestVarious()
 {
     Cmd_VisualizeN_1(0);  printf("\n\n");
@@ -175,6 +185,8 @@ void SetRandomizerMenu::Cmd_TestVarious()
     Cmd_VisualizeN_2(31); printf("\n\n");
     Cmd_VisualizeN_2(32); printf("\n\n");
     Cmd_VisualizeN_2(33); printf("\n\n");
+    Cmd_VisualizeN_13(128); printf("\n\n");
+    Cmd_VisualizeN_28(253); printf("\n\n");
 }
 
 void SetRandomizerMenu::Reseed()
