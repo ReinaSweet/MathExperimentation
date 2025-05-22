@@ -216,7 +216,7 @@ private:
 
 void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::PermutationBlock> permutationBlocks)
 {
-    const int64_t randomBits = ((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc();
+    const int64_t randomBits = MakeRandom();
 
     if (mSetSize < 2)
     {
@@ -267,7 +267,7 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Permutati
         mPermutationMultiplier = mSetSize / kPermutationIndexesPerBlock;
         for (SetRandomizerInternal::PermutationBlock& permutationBlock : permutationBlocks)
         {
-            const int64_t permutationRandomEx = ((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc();
+            const int64_t permutationRandomEx = MakeRandom();
             PermutationBuilder<0> permutationBuilder(mSetSize);
             permutationBuilder.FillBlock<0>(permutationBlock, permutationRandomEx);
         }
