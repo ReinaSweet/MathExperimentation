@@ -33,7 +33,7 @@ private:
     uint32_t(* const mRandomFunc)();
     const uint32_t mSetSize;
     ShuffleMode mShuffleMode = ShuffleMode::kNone;
-    uint32_t mCombinatoricMultiplier = 0;
+    uint32_t mPermutationMultiplier = 0;
 
     template<size_t tPermutationBlocks> requires WithinPermutationBlockBounds<tPermutationBlocks> friend class SetRandomizer;
 };
@@ -50,12 +50,12 @@ public:
 
     void Randomize()
     {
-        mInternalRandomizer.Randomize(std::span(mCombinatoricIndexes));
+        mInternalRandomizer.Randomize(std::span(mPermutationIndexes));
     }
 
     [[nodiscard]] uint32_t GetWheeledIndex(uint32_t index) const
     {
-        return mInternalRandomizer.GetWheeledIndex(index, std::span(mCombinatoricIndexes));
+        return mInternalRandomizer.GetWheeledIndex(index, std::span(mPermutationIndexes));
     }
 
     [[nodiscard]] uint32_t GetSetSize() const { return mInternalRandomizer.mSetSize; }
@@ -63,5 +63,5 @@ public:
 
 private:
     SetRandomizerInternal mInternalRandomizer;
-    alignas(16) std::array<SetRandomizerInternal::PermutationBlock, tPermutationBlocks> mCombinatoricIndexes;
+    alignas(16) std::array<SetRandomizerInternal::PermutationBlock, tPermutationBlocks> mPermutationIndexes;
 };

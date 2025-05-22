@@ -8,15 +8,8 @@
 
 /**
 * TODO:
-* SIMD exploration
-*   Replace iota
-*   Replace memmove
-*   ... how do for ARM?
-* 
 * Unify scalar types
 *   Primary bits should be uint64_t
-* 
-* Bounds check / input protect GetWheeledIndex
 * 
 * Shuffles
 *   Precompute number of shuffles, and determine # more carefully
@@ -32,7 +25,6 @@
 *   This should also remove the thread-unsafe std::vector
 * 
 * Refactors
-*   Combinatoric --> Permutation
 *   kPermutationIndexesPerBlock replaced with Block's MaxFactorial
 *   Double check thread safety
 */
@@ -142,37 +134,37 @@ class PermutationBuilder
 {
 public:
     PermutationBuilder(int32_t setSize)
-        : mNextCombinatoricSize(setSize > tMaxBlock.MaxFactorial ? tMaxBlock.MaxFactorial : setSize)
+        : mNextEntry(setSize > tMaxBlock.MaxFactorial ? tMaxBlock.MaxFactorial : setSize)
     {
         std::iota(mPositionSet.begin(), mPositionSet.end(), 0);
     }
 
     template<size_t tBlockIndex, Factoradics::Block tBlock = Factoradics::cBlocks[tBlockIndex]>
-    void FillBlock(SetRandomizerInternal::PermutationBlock& combinatoricIndexes, int64_t combinatoricRandom)
+    void FillBlock(SetRandomizerInternal::PermutationBlock& permutationIndexes, int64_t randomBits)
     {
-        mValueAndRemainder = { 0, combinatoricRandom % Factoradics::FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextCombinatoricSize)};
+        mValueAndRemainder = { 0, randomBits % Factoradics::FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry)};
 
-        --mNextCombinatoricSize;
-        mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, Factoradics::FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextCombinatoricSize));
-        combinatoricIndexes[mNextCombinatoricSize - tBlock.MinSetPosition] = GetAndRemovePosition_Careful(mValueAndRemainder.quot);
+        --mNextEntry;
+        mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, Factoradics::FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry));
+        permutationIndexes[mNextEntry - tBlock.MinSetPosition] = GetAndRemovePosition_Careful(mValueAndRemainder.quot);
 
         constexpr int64_t cLoopMin = (tBlock.MinFactorial + ((int64_t)tBlock.CoinflipFinalTwo));
-        while (mNextCombinatoricSize > cLoopMin)
+        while (mNextEntry > cLoopMin)
         {
-            --mNextCombinatoricSize;
-            mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, Factoradics::FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextCombinatoricSize));
-            combinatoricIndexes[mNextCombinatoricSize - tBlock.MinSetPosition] = GetAndRemovePosition_Fast(mValueAndRemainder.quot);
+            --mNextEntry;
+            mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, Factoradics::FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry));
+            permutationIndexes[mNextEntry - tBlock.MinSetPosition] = GetAndRemovePosition_Fast(mValueAndRemainder.quot);
         }
 
         if constexpr (tBlock.CoinflipFinalTwo)
         {
-            combinatoricIndexes[1] = GetCoinflip<true>();
-            combinatoricIndexes[0] = GetCoinflip<false>();
+            permutationIndexes[1] = GetCoinflip<true>();
+            permutationIndexes[0] = GetCoinflip<false>();
         }
         else
         {
-            --mNextCombinatoricSize;
-            combinatoricIndexes[mNextCombinatoricSize - tBlock.MinSetPosition] = GetAndRemovePosition_Fast(mValueAndRemainder.rem);
+            --mNextEntry;
+            permutationIndexes[mNextEntry - tBlock.MinSetPosition] = GetAndRemovePosition_Fast(mValueAndRemainder.rem);
         }
     }
 
@@ -218,13 +210,13 @@ private:
     }
 
     alignas(16) std::array<uint8_t, tMaxBlock.MaxFactorial> mPositionSet;
-    int64_t mNextCombinatoricSize;
+    int64_t mNextEntry;
     std::lldiv_t mValueAndRemainder;
 };
 
 void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::PermutationBlock> permutationBlocks)
 {
-    const int64_t combinatoricRandom = ((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc();
+    const int64_t randomBits = ((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc();
 
     if (mSetSize < 2)
     {
@@ -236,24 +228,24 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Permutati
     {
         // Caution: PermutationBuilder::FillStandardBlock expects a set size of atleast 3
         // This shuffle mode is here specifically to guard for that
-        permutationBlocks[0][0] = (uint8_t)combinatoricRandom & 0b1;
+        permutationBlocks[0][0] = (uint8_t)randomBits & 0b1;
         mShuffleMode = ShuffleMode::kCoinFlip;
         return;
     }
 
     if (mSetSize <= Factoradics::cBlocks[0].MaxFactorial)
     {
-        PermutationBuilder<0> combinatoricBuilder(mSetSize);
-        combinatoricBuilder.FillBlock<0>(permutationBlocks[0], combinatoricRandom);
+        PermutationBuilder<0> permutationBuilder(mSetSize);
+        permutationBuilder.FillBlock<0>(permutationBlocks[0], randomBits);
         mShuffleMode = ShuffleMode::kPermutation;
         return;
     }
 
     if (permutationBlocks.size() == 1)
     {
-        PermutationBuilder<0> combinatoricBuilder(mSetSize);
-        combinatoricBuilder.FillBlock<0>(permutationBlocks[0], combinatoricRandom);
-        mCombinatoricMultiplier = mSetSize / kPermutationIndexesPerBlock;
+        PermutationBuilder<0> permutationBuilder(mSetSize);
+        permutationBuilder.FillBlock<0>(permutationBlocks[0], randomBits);
+        mPermutationMultiplier = mSetSize / kPermutationIndexesPerBlock;
         mShuffleMode = ShuffleMode::kRepeatedShuffling;
         return;
     }
@@ -272,12 +264,12 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Permutati
 
     // mSetSize > 1 && all other options exhausted
     {
-        mCombinatoricMultiplier = mSetSize / kPermutationIndexesPerBlock;
-        for (SetRandomizerInternal::PermutationBlock& combinatoricBlock : permutationBlocks)
+        mPermutationMultiplier = mSetSize / kPermutationIndexesPerBlock;
+        for (SetRandomizerInternal::PermutationBlock& permutationBlock : permutationBlocks)
         {
-            const int64_t combinatoricRandomEx = ((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc();
-            PermutationBuilder<0> combinatoricBuilder(mSetSize);
-            combinatoricBuilder.FillBlock<0>(combinatoricBlock, combinatoricRandomEx);
+            const int64_t permutationRandomEx = ((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc();
+            PermutationBuilder<0> permutationBuilder(mSetSize);
+            permutationBuilder.FillBlock<0>(permutationBlock, permutationRandomEx);
         }
 
         mShuffleMode = ShuffleMode::kRepeatedShufflingWithBlockMixing;
@@ -332,12 +324,12 @@ void SetRandomizerInternal::FillWithPermutationExtended(size_t maxBlockIndex, st
 namespace
 {
     template<bool MixedBlocks>
-    inline uint32_t RepeatedShuffling(const uint32_t setSize, uint32_t index, uint32_t combinatoricMultiplier, std::span<const SetRandomizerInternal::PermutationBlock>& permutationBlocks)
+    inline uint32_t RepeatedShuffling(const uint32_t setSize, uint32_t index, uint32_t permutationMultiplier, std::span<const SetRandomizerInternal::PermutationBlock>& permutationBlocks)
     {
         const uint32_t shuffles = 3 + (((uint32_t)std::log2((double)setSize)) >> 1);
         for (uint32_t i = 0; true;)
         {
-            if (index < (SetRandomizerInternal::kPermutationIndexesPerBlock * combinatoricMultiplier))
+            if (index < (SetRandomizerInternal::kPermutationIndexesPerBlock * permutationMultiplier))
             {
                 // Shuffle specifics
                 const std::ldiv_t blockDiv = std::ldiv(index, SetRandomizerInternal::kPermutationIndexesPerBlock);
@@ -350,7 +342,7 @@ namespace
                 index = permutationBlocks[usedBlock][blockDiv.rem] + (blockDiv.quot * SetRandomizerInternal::kPermutationIndexesPerBlock);
             }
 
-            for (uint32_t revMultiplier = 2, combMult = combinatoricMultiplier >> 1;
+            for (uint32_t revMultiplier = 2, combMult = permutationMultiplier >> 1;
                 combMult > 0;
                 revMultiplier <<= 1, combMult >>= 1)
             {
@@ -432,12 +424,12 @@ uint32_t SetRandomizerInternal::GetWheeledIndex(uint32_t index, std::span<const 
      */
     case ShuffleMode::kRepeatedShuffling:
     {
-        return RepeatedShuffling<false>(mSetSize, index, mCombinatoricMultiplier, permutationBlocks);
+        return RepeatedShuffling<false>(mSetSize, index, mPermutationMultiplier, permutationBlocks);
     }
 
     case ShuffleMode::kRepeatedShufflingWithBlockMixing:
     {
-        return RepeatedShuffling<true>(mSetSize, index, mCombinatoricMultiplier, permutationBlocks);
+        return RepeatedShuffling<true>(mSetSize, index, mPermutationMultiplier, permutationBlocks);
     }
     }
 }
