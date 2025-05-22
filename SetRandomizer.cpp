@@ -34,71 +34,56 @@
 * Refactors
 *   Combinatoric --> Permutation
 *   kPermutationIndexesPerBlock replaced with Block's MaxFactorial
-*   Use Constraints for the Block size bounds
 *   Double check thread safety
 */
 
 
 namespace Factoradics
 {
+
+    constexpr size_t cNumBlock = 28;
+
+
+
     struct Block
     {
-        int64_t MinFactorial;
+        int64_t MinFactorial = 1;
         int64_t MaxFactorial;
-        int64_t MinSetPosition;
-        size_t M128Num;
-        bool CoinflipFinalTwo;
+        int64_t MinSetPosition = 0;
+        bool CoinflipFinalTwo = false;
+
+        constexpr Block(uint64_t entries)
+            : MaxFactorial(entries)
+        {}
     };
 
-    template<int64_t MinFactorial, int64_t MaxFactorial>
-    consteval Block DeclareBlock()
+    constexpr std::array<Block, cNumBlock> cBlocks = []() constexpr
     {
-        constexpr bool coinflipFinalTwo = (MinFactorial == 1);
-        constexpr size_t BytesInM128 = (128 / 8);
-        return Block{ MinFactorial, MaxFactorial, MinFactorial - 1, (MaxFactorial + BytesInM128 - 1) / BytesInM128, coinflipFinalTwo };
-    }
+        std::array<Block, cNumBlock> blocks =
+        {
+            20, 13, 11, 11,
+            10, 10, 9, 9,
+            9, 9, 9, 9,
+            8, 8, 8, 8,
+            8, 8, 8, 8,
+            8, 8, 8, 8,
+            8, 7, 7, 7
+        };
 
-    constexpr std::array<uint64_t, 3> cIota
-    {
-        // _mm_set_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15),
-    };
+        uint64_t baseFactorial = 0;
+        for (Block& block : blocks)
+        {
+            const uint64_t nextBase = baseFactorial + block.MaxFactorial;
+            block.MinFactorial += baseFactorial;
+            block.MaxFactorial += baseFactorial;
+            block.MinSetPosition += baseFactorial;
+            baseFactorial = nextBase;
+        }
+        blocks[0].CoinflipFinalTwo = true;
 
-    constexpr std::array<Block, 28> cBlocks
-    {
-        DeclareBlock<1, 20>(),
-        DeclareBlock<21, 33>(),
-        DeclareBlock<34, 44>(),
-        DeclareBlock<45, 55>(),
+        return blocks;
+    }();
 
-        DeclareBlock<56, 65>(),
-        DeclareBlock<66, 74>(),
-
-        DeclareBlock<75, 83>(),
-        DeclareBlock<84, 92>(),
-        DeclareBlock<93, 101>(),
-        DeclareBlock<102, 110>(),
-        DeclareBlock<111, 119>(),
-        DeclareBlock<120, 128>(),
-
-        DeclareBlock<129, 136>(),
-        DeclareBlock<137, 144>(),
-        DeclareBlock<145, 152>(),
-        DeclareBlock<153, 160>(),
-        DeclareBlock<161, 168>(),
-        DeclareBlock<169, 176>(),
-        DeclareBlock<177, 184>(),
-        DeclareBlock<185, 192>(),
-        DeclareBlock<193, 200>(),
-        DeclareBlock<201, 208>(),
-        DeclareBlock<209, 216>(),
-        DeclareBlock<217, 224>(),
-        DeclareBlock<225, 232>(),
-
-        DeclareBlock<233, 239>(),
-        DeclareBlock<240, 246>(),
-        DeclareBlock<247, 253>()
-    };
-    
     template<int64_t MaxFactorial>
     consteval int64_t ConstMax(int64_t value)
     {
@@ -159,7 +144,7 @@ public:
     PermutationBuilder(int32_t setSize)
         : mNextCombinatoricSize(setSize > tMaxBlock.MaxFactorial ? tMaxBlock.MaxFactorial : setSize)
     {
-        std::iota(mPositionSet.begin(), mPositionSet.end(), 0); 
+        std::iota(mPositionSet.begin(), mPositionSet.end(), 0);
     }
 
     template<size_t tBlockIndex, Factoradics::Block tBlock = Factoradics::cBlocks[tBlockIndex]>
@@ -181,8 +166,8 @@ public:
 
         if constexpr (tBlock.CoinflipFinalTwo)
         {
-            combinatoricIndexes[1] = mPositionSet[mValueAndRemainder.rem & 0b1];
-            combinatoricIndexes[0] = mPositionSet[!(mValueAndRemainder.rem & 0b1)];
+            combinatoricIndexes[1] = GetCoinflip<true>();
+            combinatoricIndexes[0] = GetCoinflip<false>();
         }
         else
         {
@@ -219,51 +204,20 @@ private:
         return positionValue;
     }
 
-    inline __m128i RShiftM128(const __m128i& src, size_t shift) const
+    template<bool tFirstPos>
+    inline uint8_t GetCoinflip()
     {
-        switch (shift)
+        if constexpr (tFirstPos)
         {
-        case 1: return _mm_srli_si128(src, 1);
-        case 2: return _mm_srli_si128(src, 2);
-        case 3: return _mm_srli_si128(src, 3);
-        default: return src;
+            return mPositionSet[mValueAndRemainder.rem & 0b1];
+        }
+        else
+        {
+            return mPositionSet[(mValueAndRemainder.rem & 0b1) ^ 0b1];
         }
     }
 
-    inline uint8_t GetAndRemovePos(size_t pos)
-    {
-        const size_t offset = pos & 0xFF;
-        const size_t jump = pos >> 16;
-        __declspec(align(16)) const uint8_t data[16];
-        memcpy(data, &mPositionVector[jump], sizeof(data));
-
-        __m128i allOnes = _mm_set1_epi8(1);
-        __m128i shiftedOnes;
-        
-        switch (jump)
-        {
-        case 0: shiftedOnes = RShiftM128(allOnes, offset); mPositionVector[0] = _mm_subs_epu8(mPositionVector[0], shiftedOnes); goto sub1;
-        default: return 0;
-        }
-
-    sub1:
-        mPositionVector[1] = _mm_subs_epu8(mPositionVector[1], allOnes);
-    sub2:
-        if constexpr (tMaxBlock.M128Num >= 2)
-        {
-            mPositionVector[2] = _mm_subs_epu8(mPositionVector[2], allOnes);
-        }
-    sub3:
-        if constexpr (tMaxBlock.M128Num >= 3)
-        {
-            mPositionVector[3] = _mm_subs_epu8(mPositionVector[3], allOnes);
-        }
-    exit:
-        return data[offset];
-    }
-
-    std::array<uint8_t, tMaxBlock.MaxFactorial> mPositionSet;
-    alignas(16) std::array<__m128i, tMaxBlock.M128Num> mPositionVector;
+    alignas(16) std::array<uint8_t, tMaxBlock.MaxFactorial> mPositionSet;
     int64_t mNextCombinatoricSize;
     std::lldiv_t mValueAndRemainder;
 };

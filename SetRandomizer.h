@@ -1,4 +1,7 @@
 #pragma once
+template<size_t tSize>
+concept WithinPermutationBlockBounds = tSize > 0 && tSize <= 28;
+
 class SetRandomizerInternal
 {
 public:
@@ -32,10 +35,10 @@ private:
     ShuffleMode mShuffleMode = ShuffleMode::kNone;
     uint32_t mCombinatoricMultiplier = 0;
 
-    template<size_t tPermutationBlocks> requires (tPermutationBlocks > 0) friend class SetRandomizer;
+    template<size_t tPermutationBlocks> requires WithinPermutationBlockBounds<tPermutationBlocks> friend class SetRandomizer;
 };
 
-template <size_t tPermutationBlocks> requires (tPermutationBlocks > 0)
+template <size_t tPermutationBlocks> requires WithinPermutationBlockBounds<tPermutationBlocks>
 class SetRandomizer
 {
 public:

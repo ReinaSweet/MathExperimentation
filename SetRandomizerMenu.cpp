@@ -101,7 +101,9 @@ namespace
         }
         putchar('/');
 
-        printf("\n^ SetSize: %llu, Blocks: %u, Num Errors: %u, Time: %uns", setSize, (uint32_t)Blocks, numErrors, totalTime);
+        const uint32_t timePerEntry = setSize > 0 ? totalTime / (uint32_t)setSize : 0;
+        printf("\n^ SetSize: %llu, Blocks: %u, Num Errors: %u, Time: %uns, Time per Entry: %uns", 
+            setSize, (uint32_t)Blocks, numErrors, totalTime, timePerEntry);
     }
 }
 
@@ -132,6 +134,7 @@ SetRandomizerMenu::SetRandomizerMenu(const char* const input, ConsoleMenu& paren
     mMenuVisualize.AddCommand("wb", "Whatever Set Size You Want (2 blocks);dSet Size", [this](uint64_t setSize) { Cmd_VisualizeN_2(setSize); });
     mMenuVisualize.AddCommand("wc", "Whatever Set Size You Want (3 blocks);dSet Size", [this](uint64_t setSize) { Cmd_VisualizeN_3(setSize); });
     mMenuVisualize.AddCommand("wm", "Whatever Set Size You Want (13 blocks);dSet Size", [this](uint64_t setSize) { Cmd_VisualizeN_13(setSize); });
+    mMenuVisualize.AddCommand("tl", "Test Large", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_TestLarge, this)));
     mMenuVisualize.AddCommand("tv", "Test Various", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_TestVarious, this)));
 }
 
@@ -187,6 +190,11 @@ void SetRandomizerMenu::Cmd_TestVarious()
     Cmd_VisualizeN_2(33); printf("\n\n");
     Cmd_VisualizeN_13(128); printf("\n\n");
     Cmd_VisualizeN_28(253); printf("\n\n");
+}
+
+void SetRandomizerMenu::Cmd_TestLarge()
+{
+    Cmd_VisualizeN_13(4680);  printf("\n\n");
 }
 
 void SetRandomizerMenu::Reseed()

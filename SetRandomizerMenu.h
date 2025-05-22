@@ -14,6 +14,7 @@ private:
     void Cmd_VisualizeN_13(uint64_t n);
     void Cmd_VisualizeN_28(uint64_t n);
     void Cmd_TestVarious();
+    void Cmd_TestLarge();
 
     void Reseed();
 
