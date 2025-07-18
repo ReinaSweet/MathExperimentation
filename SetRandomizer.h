@@ -6,34 +6,44 @@ class SetRandomizerInternal
 {
 public:
     SetRandomizerInternal() = delete;
-    static constexpr size_t kPermutationIndexesPerBlock = 20;
-    using PermutationBlock = std::array<uint8_t, kPermutationIndexesPerBlock>;
+    static constexpr size_t cPermutationIndexesPerBlock = 20;
+    using PermutationBlock = std::array<uint8_t, cPermutationIndexesPerBlock>;
 
 private:
-    SetRandomizerInternal(uint32_t(*randomFunc)(), uint32_t setSize)
+    enum class ShuffleDataSize : uint8_t
+    {
+        Single,
+        Small,
+        Large
+    };
+
+    enum class ShuffleMode : uint8_t
+    {
+        None,
+        CoinFlip,
+        Permutation,
+        PermutationExtended,
+        RepeatedShuffling,
+        RepeatedShufflingWithBlockMixing
+    };
+
+    SetRandomizerInternal(uint32_t(*randomFunc)(), uint32_t setSize) noexcept
         : mRandomFunc(randomFunc)
         , mSetSize(setSize)
     {}
 
-    void Randomize(std::span<SetRandomizerInternal::PermutationBlock> tPermutationBlocks);
-    void FillWithPermutationExtended(size_t maxBlockIndex, std::span<SetRandomizerInternal::PermutationBlock>& tPermutationBlocks);
-    uint32_t GetWheeledIndex(uint32_t index, std::span<const SetRandomizerInternal::PermutationBlock> tPermutationBlocks) const;
-    int64_t MakeRandom() const;
+    void RandomizeSingleBlock(SetRandomizerInternal::PermutationBlock& permutationBlock) noexcept;
+    template<ShuffleDataSize tDataSize>
+    void Randomize(std::span<SetRandomizerInternal::PermutationBlock> permutationBlocks);
 
-    enum class ShuffleMode : uint8_t
-    {
-        kNone,
-        kCoinFlip,
-        kPermutation,
-        kPermutationExtended,
-        kRepeatedShuffling,
-        kRepeatedShufflingWithBlockMixing
-    };
+    void FillWithPermutationExtended(size_t maxBlockIndex, std::span<SetRandomizerInternal::PermutationBlock>& permutationBlocks);
+    [[nodiscard]] uint32_t GetWheeledIndex(uint32_t index, std::span<const SetRandomizerInternal::PermutationBlock> permutationBlocks) const;
+    [[nodiscard]] int64_t MakeRandom() const;
 
     uint32_t(* const mRandomFunc)();
-    const uint32_t mSetSize;
-    ShuffleMode mShuffleMode = ShuffleMode::kNone;
+    uint32_t mSetSize = 0;
     uint32_t mPermutationMultiplier = 0;
+    ShuffleMode mShuffleMode = ShuffleMode::None;
 
     template<size_t tPermutationBlocks> requires WithinPermutationBlockBounds<tPermutationBlocks> friend class SetRandomizer;
 };
@@ -42,7 +52,7 @@ template <size_t tPermutationBlocks> requires WithinPermutationBlockBounds<tPerm
 class SetRandomizer
 {
 public:
-    SetRandomizer(uint32_t(*randomFunc)(), uint32_t setSize)
+    SetRandomizer(uint32_t(*randomFunc)(), uint32_t setSize) noexcept
     : mInternalRandomizer(randomFunc, setSize)
     {
         Randomize();
@@ -50,7 +60,22 @@ public:
 
     void Randomize()
     {
-        mInternalRandomizer.Randomize(std::span(mPermutationIndexes));
+        if constexpr (tPermutationBlocks == 1)
+        {
+            mInternalRandomizer.RandomizeSingleBlock(mPermutationIndexes[0]);
+        }
+        /**
+        * "6" is somewhat arbitrary here. Changing the number should have no actual impact on functionality.
+        * This branch is only done for the intent of runtime performance for some use cases
+        */
+        else if constexpr (tPermutationBlocks < 6)
+        {
+            mInternalRandomizer.Randomize<SetRandomizerInternal::ShuffleDataSize::Small>(std::span(mPermutationIndexes));
+        }
+        else
+        {
+            mInternalRandomizer.Randomize<SetRandomizerInternal::ShuffleDataSize::Large>(std::span(mPermutationIndexes));
+        }
     }
 
     [[nodiscard]] uint32_t GetWheeledIndex(uint32_t index) const

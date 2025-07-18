@@ -1,10 +1,10 @@
 #include "SetRandomizer.h"
 
+#include <bit>
 #include <cmath>
 #include <cstring>
 #include <cstdlib>
 #include <numeric>
-#include <emmintrin.h>
 
 /**
 * TODO:
@@ -17,6 +17,11 @@
 *   Allow callers to limit zooming in shuffles?
 *   Math: Are any permutation combinations equivalent to another? Proof?
 *   Are there any extended permutation + shuffle techniques?
+*   Rejection Sampling
+* 
+* Shuffle Math
+*   If setsize > max && (setsize / max) < 2:
+*   else: shift via remainder
 *
 * RNG
 *   Document bias in the RNG from modulos that aren't a power of 2
@@ -25,8 +30,10 @@
 *   This should also remove the thread-unsafe std::vector
 * 
 * Refactors
-*   kPermutationIndexesPerBlock replaced with Block's MaxFactorial
+*   cPermutationIndexesPerBlock replaced with Block's MaxFactorial
 *   Double check thread safety
+*   [[noexcept]]
+*   [[nodiscard]]
 */
 
 
@@ -34,52 +41,11 @@ namespace Factoradics
 {
 
     constexpr size_t cNumBlock = 28;
-
-
-
-    struct Block
-    {
-        int64_t MinFactorial = 1;
-        int64_t MaxFactorial;
-        int64_t MinSetPosition = 0;
-        bool CoinflipFinalTwo = false;
-
-        constexpr Block(uint64_t entries)
-            : MaxFactorial(entries)
-        {}
-    };
-
-    constexpr std::array<Block, cNumBlock> cBlocks = []() constexpr
-    {
-        std::array<Block, cNumBlock> blocks =
-        {
-            20, 13, 11, 11,
-            10, 10, 9, 9,
-            9, 9, 9, 9,
-            8, 8, 8, 8,
-            8, 8, 8, 8,
-            8, 8, 8, 8,
-            8, 7, 7, 7
-        };
-
-        uint64_t baseFactorial = 0;
-        for (Block& block : blocks)
-        {
-            const uint64_t nextBase = baseFactorial + block.MaxFactorial;
-            block.MinFactorial += baseFactorial;
-            block.MaxFactorial += baseFactorial;
-            block.MinSetPosition += baseFactorial;
-            baseFactorial = nextBase;
-        }
-        blocks[0].CoinflipFinalTwo = true;
-
-        return blocks;
-    }();
-
-    template<int64_t MaxFactorial>
+    
+    template<int64_t tMax>
     consteval int64_t ConstMax(int64_t value)
     {
-        return (value > MaxFactorial) ? MaxFactorial : value;
+        return (value > tMax) ? tMax : value;
     }
 
     consteval int64_t ConstFactorialRange(int64_t min, int64_t max)
@@ -123,6 +89,60 @@ namespace Factoradics
         default: return 1;
         }
     }
+
+
+    struct Block
+    {
+        int64_t MinFactorial = 1;
+        int64_t MaxFactorial;
+        int64_t MinSetPosition = 0;
+        int64_t MaxBeforeRejectionSampling = 0;
+        bool CoinflipFinalTwo = false;
+
+        constexpr Block(uint64_t entries)
+            : MaxFactorial(entries)
+        {}
+    };
+
+    constexpr std::array<Block, cNumBlock> cBlocks = []() consteval
+    {
+        std::array<Block, cNumBlock> blocks =
+        {
+            20, 13, 11, 11,
+            10, 10, 9, 9,
+            9, 9, 9, 9,
+            8, 8, 8, 8,
+            8, 8, 8, 8,
+            8, 8, 8, 8,
+            8, 7, 7, 7
+        };
+
+        /**
+        If the safe multiplier of the final factoradic base in a block is a divisor (to an integer) of the first base of
+        the next block, then we can combine we perform the division and include that last bit of information in the next
+
+        Or combine multiple of them over many blocks
+        */
+
+        uint64_t baseFactorial = 0;
+        for (Block& block : blocks)
+        {
+            const uint64_t nextBase = baseFactorial + block.MaxFactorial;
+            block.MinFactorial += baseFactorial;
+            block.MaxFactorial += baseFactorial;
+            block.MinSetPosition += baseFactorial;
+
+            const int64_t unbiasedMaxBase = ConstFactorialRange(block.MinFactorial, block.MaxFactorial);
+            const int64_t maxInstancesOfUnbiasedBase = std::numeric_limits<int64_t>::max() / unbiasedMaxBase; // Truncation intentional
+            block.MaxBeforeRejectionSampling = maxInstancesOfUnbiasedBase * unbiasedMaxBase;
+
+            baseFactorial = nextBase;
+        }
+        blocks[0].CoinflipFinalTwo = true;
+
+        return blocks;
+    }();
+
 };
 
 /**
@@ -142,29 +162,34 @@ public:
     template<size_t tBlockIndex, Factoradics::Block tBlock = Factoradics::cBlocks[tBlockIndex]>
     void FillBlock(SetRandomizerInternal::PermutationBlock& permutationIndexes, int64_t randomBits)
     {
+        // TODO: Rejection Sampling
+
         mValueAndRemainder = { 0, randomBits % Factoradics::FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry)};
 
         --mNextEntry;
         mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, Factoradics::FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry));
-        permutationIndexes[mNextEntry - tBlock.MinSetPosition] = GetAndRemovePosition_Careful(mValueAndRemainder.quot);
+        permutationIndexes[mNextEntry - tBlock.MinSetPosition] = GetAndRemovePosition(mValueAndRemainder.quot);
 
         constexpr int64_t cLoopMin = (tBlock.MinFactorial + ((int64_t)tBlock.CoinflipFinalTwo));
         while (mNextEntry > cLoopMin)
         {
             --mNextEntry;
             mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, Factoradics::FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry));
-            permutationIndexes[mNextEntry - tBlock.MinSetPosition] = GetAndRemovePosition_Fast(mValueAndRemainder.quot);
+            permutationIndexes[mNextEntry - tBlock.MinSetPosition] = GetAndRemovePosition(mValueAndRemainder.quot);
         }
 
         if constexpr (tBlock.CoinflipFinalTwo)
         {
-            permutationIndexes[1] = GetCoinflip<true>();
-            permutationIndexes[0] = GetCoinflip<false>();
+            const size_t finalBit = mValueAndRemainder.rem & 0b1;
+            permutationIndexes[finalBit] = mPositionSet[1];
+            permutationIndexes[finalBit ^ 0b1] = mPositionSet[0];
         }
         else
         {
             --mNextEntry;
-            permutationIndexes[mNextEntry - tBlock.MinSetPosition] = GetAndRemovePosition_Fast(mValueAndRemainder.rem);
+            const uint8_t finalEntry = GetAndRemovePosition(mValueAndRemainder.rem);
+            const int64_t finalEntryIndex = mNextEntry - tBlock.MinSetPosition;
+            permutationIndexes[finalEntryIndex] = finalEntry;
         }
     }
 
@@ -179,34 +204,11 @@ public:
     }
 
 private:
-    inline uint8_t GetAndRemovePosition_Fast(int64_t position)
+    inline uint8_t GetAndRemovePosition(int64_t position)
     {
         const uint8_t positionValue = mPositionSet[position];
-        memmove(&mPositionSet[position], &mPositionSet[position + 1], (tMaxBlock.MaxFactorial - position) * sizeof(uint8_t));
+        mPositionSet[position] = mPositionSet[mNextEntry];
         return positionValue;
-    }
-
-    inline uint8_t GetAndRemovePosition_Careful(int64_t position)
-    {
-        const uint8_t positionValue = mPositionSet[position];
-        if ((position + 1) < tMaxBlock.MaxFactorial)
-        {
-            memmove(&mPositionSet[position], &mPositionSet[position + 1], (tMaxBlock.MaxFactorial - position) * sizeof(uint8_t));
-        }
-        return positionValue;
-    }
-
-    template<bool tFirstPos>
-    inline uint8_t GetCoinflip()
-    {
-        if constexpr (tFirstPos)
-        {
-            return mPositionSet[mValueAndRemainder.rem & 0b1];
-        }
-        else
-        {
-            return mPositionSet[(mValueAndRemainder.rem & 0b1) ^ 0b1];
-        }
     }
 
     alignas(16) std::array<uint8_t, tMaxBlock.MaxFactorial> mPositionSet;
@@ -214,13 +216,48 @@ private:
     std::lldiv_t mValueAndRemainder;
 };
 
-void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::PermutationBlock> permutationBlocks)
+void SetRandomizerInternal::RandomizeSingleBlock(SetRandomizerInternal::PermutationBlock& permutationBlock) noexcept
 {
     const int64_t randomBits = MakeRandom();
+    mShuffleMode = ShuffleMode::None;
 
     if (mSetSize < 2)
     {
-        mShuffleMode = ShuffleMode::kNone;
+        return;
+    }
+
+    if (mSetSize == 2)
+    {
+        // Caution: PermutationBuilder::FillStandardBlock expects a set size of atleast 3
+        // This shuffle mode is here specifically to guard for that
+        permutationBlock[0] = (uint8_t)randomBits & 0b1;
+        mShuffleMode = ShuffleMode::CoinFlip;
+        return;
+    }
+
+    PermutationBuilder<0> permutationBuilder(mSetSize);
+    permutationBuilder.FillBlock<0>(permutationBlock, randomBits);
+
+    if (mSetSize <= Factoradics::cBlocks[0].MaxFactorial)
+    {
+        mShuffleMode = ShuffleMode::Permutation;
+        return;
+    }
+
+    // TODO: Deal with sets sized 30~39, esp 35~39
+    mPermutationMultiplier = mSetSize / cPermutationIndexesPerBlock;
+    mShuffleMode = ShuffleMode::RepeatedShuffling;
+    return;
+}
+
+template<SetRandomizerInternal::ShuffleDataSize tDataSize>
+void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::PermutationBlock> permutationBlocks)
+{
+    const int64_t randomBits = MakeRandom();
+    mShuffleMode = ShuffleMode::None;
+
+    if (mSetSize < 2)
+    {
         return;
     }
 
@@ -229,7 +266,7 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Permutati
         // Caution: PermutationBuilder::FillStandardBlock expects a set size of atleast 3
         // This shuffle mode is here specifically to guard for that
         permutationBlocks[0][0] = (uint8_t)randomBits & 0b1;
-        mShuffleMode = ShuffleMode::kCoinFlip;
+        mShuffleMode = ShuffleMode::CoinFlip;
         return;
     }
 
@@ -237,34 +274,60 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Permutati
     {
         PermutationBuilder<0> permutationBuilder(mSetSize);
         permutationBuilder.FillBlock<0>(permutationBlocks[0], randomBits);
-        mShuffleMode = ShuffleMode::kPermutation;
+        mShuffleMode = ShuffleMode::Permutation;
         return;
     }
 
-    if (permutationBlocks.size() == 1)
+    if (mSetSize <= Factoradics::cBlocks.back().MaxFactorial)
     {
-        PermutationBuilder<0> permutationBuilder(mSetSize);
-        permutationBuilder.FillBlock<0>(permutationBlocks[0], randomBits);
-        mPermutationMultiplier = mSetSize / kPermutationIndexesPerBlock;
-        mShuffleMode = ShuffleMode::kRepeatedShuffling;
-        return;
-    }
+        const size_t blockSize = std::min(permutationBlocks.size(), Factoradics::cBlocks.size());
 
-    if (permutationBlocks.size() <= Factoradics::cBlocks.size())
-    {
-        for (size_t blockIndex = 0; blockIndex < permutationBlocks.size(); ++blockIndex)
+        if constexpr (tDataSize == SetRandomizerInternal::ShuffleDataSize::Small)
         {
-            if (mSetSize <= Factoradics::cBlocks[blockIndex].MaxFactorial)
+            for (size_t blockIndex = 0; blockIndex < blockSize; ++blockIndex)
             {
-                FillWithPermutationExtended(blockIndex, permutationBlocks);
-                return;
+                if (mSetSize <= Factoradics::cBlocks[blockIndex].MaxFactorial)
+                {
+                    FillWithPermutationExtended(blockIndex, permutationBlocks);
+                    return;
+                }
             }
         }
+        else if constexpr (tDataSize == SetRandomizerInternal::ShuffleDataSize::Large)
+        {
+            /**
+            * This polynomial fits set size to be equal to or 1 greater than what fits in each block
+            * Doing this only lets us save a few checks. Which is why we don't both with smaller permutation block sizes
+            */
+            const double setAsDouble = (double)mSetSize;
+            size_t blockIndex = (size_t)(1.177 + (0.07143 * setAsDouble) + (0.000162 * setAsDouble * setAsDouble));
+            blockIndex = std::min(blockIndex, blockSize - 1);
+
+            for (; blockIndex > 0; --blockIndex)
+            {
+                if (mSetSize > Factoradics::cBlocks[blockIndex].MinSetPosition)
+                {
+                    FillWithPermutationExtended(blockIndex, permutationBlocks);
+                    return;
+                }
+            }
+        }
+
+
+        // The 0th block index was already verified as not valid by this point. Reaching this point should be impossible
+        // See above: mShuffleMode = ShuffleMode::Permutation;
+        mShuffleMode = ShuffleMode::None;
+        return;
     }
+
+    // TODO: Don't do block mixing
+    // Instead do permutation extended.
+    // And handle weird cases of [1.5x, 2.0x) blocks of data
+    // Or more so especially, [1.75x, 2.0x)
 
     // mSetSize > 1 && all other options exhausted
     {
-        mPermutationMultiplier = mSetSize / kPermutationIndexesPerBlock;
+        mPermutationMultiplier = mSetSize / cPermutationIndexesPerBlock;
         for (SetRandomizerInternal::PermutationBlock& permutationBlock : permutationBlocks)
         {
             const int64_t permutationRandomEx = MakeRandom();
@@ -272,13 +335,17 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Permutati
             permutationBuilder.FillBlock<0>(permutationBlock, permutationRandomEx);
         }
 
-        mShuffleMode = ShuffleMode::kRepeatedShufflingWithBlockMixing;
+        mShuffleMode = ShuffleMode::RepeatedShufflingWithBlockMixing;
     }
 }
 
+template void SetRandomizerInternal::Randomize<SetRandomizerInternal::ShuffleDataSize::Small>(std::span<SetRandomizerInternal::PermutationBlock>);
+template void SetRandomizerInternal::Randomize<SetRandomizerInternal::ShuffleDataSize::Large>(std::span<SetRandomizerInternal::PermutationBlock>);
+
+
 void SetRandomizerInternal::FillWithPermutationExtended(size_t maxBlockIndex, std::span<SetRandomizerInternal::PermutationBlock>& permutationBlocks)
 {
-    mShuffleMode = ShuffleMode::kPermutationExtended;
+    mShuffleMode = ShuffleMode::PermutationExtended;
 
     std::vector<int64_t> randomBits;
     randomBits.reserve(maxBlockIndex + 1);
@@ -317,7 +384,7 @@ void SetRandomizerInternal::FillWithPermutationExtended(size_t maxBlockIndex, st
     case  2: { PermutationBuilder< 2> builder(mSetSize); builder.FillBlockAndFallThrough< 2>(permutationBlocks, randomBits); } break;
     case  1: { PermutationBuilder< 1> builder(mSetSize); builder.FillBlockAndFallThrough< 1>(permutationBlocks, randomBits); } break;
     case  0: { PermutationBuilder< 0> builder(mSetSize); builder.FillBlockAndFallThrough< 0>(permutationBlocks, randomBits); } break;
-    default: mShuffleMode = ShuffleMode::kNone; break;
+    default: mShuffleMode = ShuffleMode::None; break;
     }
 }
 
@@ -326,39 +393,160 @@ namespace
     template<bool MixedBlocks>
     inline uint32_t RepeatedShuffling(const uint32_t setSize, uint32_t index, uint32_t permutationMultiplier, std::span<const SetRandomizerInternal::PermutationBlock>& permutationBlocks)
     {
+        /**
+        
+        OPERATIONS:
+        [Q_R] combine # --> Q * # + R
+        e.g.
+        [9_2] combine 3 --> 9 * 3 + 2 = 29
+
+        [[Q2_R2]_R1] combine # --> [[Q2 * # + R2]_R1]
+        e.g.
+        [[4_1]_2] combine 2 --> [[4 * 2 + 1]_2] = [[9]_2] = [9_2]
+
+        # div # --> [quotient_remainder] aka [Q_R]
+        e.g.
+        29 div 3 --> [9_2] = (9 * 3 + 2) = (27 + 2) = 29
+
+        [Q_R] div # --> [[quotient2_remainder2]_remainder] aka [[Q2_R2]]_R1]
+        e.g.
+        [9_2] div 2 --> [[4_1]_2] = ((4 * 2 + 1) * 3 + 2) = ((8 + 1) * 3 + 2) = (27 + 2) = 29
+
+        map(#,#) --> swap innermost remainders with the matching numbers (a very very simple permutation)
+        e.g. with a permutation that swaps 1 and 0
+        [[4_1]_2] map(0,1) --> [[4_0]_2] = ((4 * 2 + 0) * 3 + 2) = ((8 + 0) * 3 + 2) = (24 + 2) = 26
+
+        # shift # --> Subtracts number, rolling over when reaching 0 to the max of the set size (aka "# - # mod set size")
+        e.g. (set size of 16)
+        1 roll 4 --> (4 arrows) 1->0->15->14->13 --> 13
+        OR
+        1 roll 4 --> (1-4) mod 16 --> 13
+
+
+        Final rule:
+        We operate only on numbers that can be grouped under ALL divs in the operation.
+        e.g.
+        If we div 2 and div 3, 2 * 3 = 6. We operate on numbers that fill full blocks of 6.
+        So, [0,1,2,3,4,5] = Good. [6,7,8,9,10,11] = Good. [12] = Not good.
+        This can be done at each block of steps.
+
+        FULL EXAMPLE (set size 16, permutation size 3):
+
+0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15
+[0_0],[0_1],[0_2],[1_0],[1_1],[1_2],[2_0],[2_1],[2_2],[3_0],[3_1],[3_2],[4_0],[4_1],[4_2],15 :: div 3
+[0_1],[0_0],[0_2],[1_1],[1_0],[1_2],[2_1],[2_0],[2_2],[3_1],[3_0],[3_2],[4_1],[4_0],[4_2],15 :: rmap(0,1)
+1,0,2,4,3,5,7,6,8,10,9,11,13,12,14,15 :: combine 3
+
+[0_1],[0_0],[1_0],[2_0],[1_1],[2_1],[3_1],[3_0],[4_0],[5_0],[4_1],[5_1],13,12,14,15 :: div 2
+[[0_0]_1],[[0_0]_0],[[0_1]_0],[[0_2]_0],[[0_1]_1],[[0_2]_1],[[1_0]_1],[[1_0]_0],[[1_1]_0],[[1_2]_0],[[1_1]_1],[[1_2]_1],13,12,14,15 :: div 3
+[[0_1]_1],[[0_1]_0],[[0_0]_0],[[0_2]_0],[[0_0]_1],[[0_2]_1],[[1_1]_1],[[1_1]_0],[[1_0]_0],[[1_2]_0],[[1_0]_1],[[1_2]_1],13,12,14,15 :: rmap(0,1)
+[1_1],[1_0],[0_0],[2_0],[0_1],[2_1],[4_1],[4_0],[3_0],[5_0],[3_1],[5_1],13,12,14,15 :: combine 3
+3,2,0,4,1,5,9,8,6,10,7,11,13,12,14,15 :: combine 2
+
+[0_3],[0_2],[0_0],[1_0],[0_1],[1_1],[2_1],[2_0],[1_2],[2_2],[1_3],[2_3],13,12,14,15 :: div 4
+[[0_0]_3],[[0_0]_2],[[0_0]_0],[[0_1]_0],[[0_0]_1],[[0_1]_1],[[0_2]_1],[[0_2]_0],[[0_1]_2],[[0_2]_2],[[0_1]_3],[[0_2]_3],13,12,14,15 :: div 3
+[[0_1]_3],[[0_1]_2],[[0_1]_0],[[0_0]_0],[[0_1]_1],[[0_0]_1],[[0_2]_1],[[0_2]_0],[[0_0]_2],[[0_2]_2],[[0_0]_3],[[0_2]_3],13,12,14,15 :: rmap(0,1)
+[1_3],[1_2],[1_0],[0_0],[1_1],[0_1],[2_1],[2_0],[0_2],[2_2],[0_3],[2_3],13,12,14,15 :: combine 3
+7,6,4,0,5,1,9,8,2,10,3,11,13,12,14,15 :: combine 4
+
+3,2,0,12,1,13,5,4,14,6,15,7,9,8,10,11 :: shift 4
+
+[0_3],[0_2],[0_0],[2_2],[0_1],[2_3],[1_0],[0_4],[2_4],[1_1],15,[1_2],[1_4],[1_3],[2_0],[2_1] :: div 5
+[1_3],[1_2],[1_0],[2_2],[1_1],[2_3],[0_0],[1_4],[2_4],[0_1],15,[0_2],[0_4],[0_3],[2_0],[2_1] :: qmap(0,1)
+8,7,5,12,6,13,0,9,14,1,15,2,4,3,10,11 :: combine 5
+
+4,3,1,8,2,9,12,5,10,13,11,14,0,15,6,7 :: shift 4
+
+[1_1],[1_0],[0_1],[2_2],[0_2],[3_0],[4_0],[1_2],[3_1],[4_1],[3_2],[4_2],[0_0],15,[2_0],[2_1] :: div 3
+[1_0],[1_1],[0_0],[2_2],[0_2],[3_1],[4_1],[1_2],[3_0],[4_0],[3_2],[4_2],[0_1],15,[2_1],[2_0] :: rmap(0,1)
+3,4,0,8,2,10,13,5,9,12,11,14,1,15,7,6 :: combine 3
+
+[1_1],[2_0],[0_0],[4_0],[1_0],[5_0],13,[2_1],[4_1],12,[5_1],14,[0_1],15,[3_1],[3_0] :: div 2
+[[0_1]_1],[[0_2]_0],[[0_0]_0],[[1_1]_0],[[0_1]_0],[[1_2]_0],13,[[0_2]_1],[[1_1]_1],12,[[1_2]_1],14,[[0_0]_1],15,[[1_0]_1],[[1_0]_0] :: div 3
+[[0_0]_1],[[0_2]_0],[[0_1]_0],[[1_0]_0],[[0_0]_0],[[1_2]_0],13,[[0_2]_1],[[1_0]_1],12,[[1_2]_1],14,[[0_1]_1],15,[[1_1]_1],[[1_1]_0] :: rmap(0,1)
+[0_1],[2_0],[1_0],[3_0],[0_0],[5_0],13,[2_1],[3_1],12,[5_1],14,[1_1],15,[4_1],[4_0] :: combine 3
+1,4,2,6,0,10,13,5,7,12,11,14,3,15,9,8 :: combine 2
+
+[0_1],[1_0],[0_2],[1_2],[0_0],[2_2],13,[1_1],[1_3],12,[2_3],14,[0_3],15,[2_1],[2_0] :: div 4
+[[0_0]_1],[[0_1]_0],[[0_0]_2],[[0_1]_2],[[0_0]_0],[[0_2]_2],13,[[0_1]_1],[[0_1]_3],12,[[0_2]_3],14,[[0_0]_3],15,[[0_2]_1],[[0_2]_0] :: div 3
+[[0_1]_1],[[0_0]_0],[[0_1]_2],[[0_0]_2],[[0_1]_0],[[0_2]_2],13,[[0_0]_1],[[0_0]_3],12,[[0_2]_3],14,[[0_1]_3],15,[[0_2]_1],[[0_2]_0] :: rmap(0,1)
+[1_1],[0_0],[1_2],[0_2],[1_0],[2_2],13,[0_1],[0_3],12,[2_3],14,[1_3],15,[2_1],[2_0] :: combine 3
+5,0,6,2,4,10,13,1,3,12,11,14,7,15,9,8 :: combine 4
+
+The above example is a showcase of a transform with a factoradic max base of 3 on a set size of 16, resulting in:
+0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 --> 5,0,6,2,4,10,13,1,3,12,11,14,7,15,9,8
+
+        */
+
+
+        // const uint32_t shuffles = 3 + (((uint32_t)std::log2((double)setSize)) >> 1
+        // (std::bit_width(setSize) + 1) >> 1
+
+
+
+        for (uint32_t revMultiplier = 1, combMult = permutationMultiplier;
+            combMult > 0;
+            revMultiplier <<= 1, combMult >>= 1)
+        {
+            const uint32_t blockSize = SetRandomizerInternal::cPermutationIndexesPerBlock * revMultiplier;
+            if (index < (blockSize * combMult))
+            {
+                const std::ldiv_t baseMultDiv = std::ldiv(index, revMultiplier);
+                const std::ldiv_t blockDiv = std::ldiv(baseMultDiv.quot, SetRandomizerInternal::cPermutationIndexesPerBlock);
+                uint32_t usedBlock = 0;
+                index = (blockDiv.quot * SetRandomizerInternal::cPermutationIndexesPerBlock) * permutationBlocks[usedBlock][blockDiv.rem];
+                index = (index * revMultiplier) + baseMultDiv.rem;
+            }
+        }
+
+        // index = (index + (setSize >> 1)) % setSize;
+
+        // Shift by overshot
+        // Map by quotient
+        // 
+
+
+        return index;
+    }
+
+    template<bool MixedBlocks>
+    inline uint32_t ShuffleContinuousBatch(const uint32_t setSize, uint32_t index, uint32_t permutationMultiplier, std::span<const SetRandomizerInternal::PermutationBlock>& permutationBlocks)
+    {
         const uint32_t shuffles = 3 + (((uint32_t)std::log2((double)setSize)) >> 1);
+        // (std::bit_width(setSize) + 1) >> 1
+
         for (uint32_t i = 0; true;)
         {
-            if (index < (SetRandomizerInternal::kPermutationIndexesPerBlock * permutationMultiplier))
+            if (index < (SetRandomizerInternal::cPermutationIndexesPerBlock * permutationMultiplier))
             {
                 // Shuffle specifics
-                const std::ldiv_t blockDiv = std::ldiv(index, SetRandomizerInternal::kPermutationIndexesPerBlock);
+                const std::ldiv_t blockDiv = std::ldiv(index, SetRandomizerInternal::cPermutationIndexesPerBlock);
 
                 uint32_t usedBlock = 0;
                 if constexpr (MixedBlocks)
                 {
                     usedBlock = i % permutationBlocks.size();
                 }
-                index = permutationBlocks[usedBlock][blockDiv.rem] + (blockDiv.quot * SetRandomizerInternal::kPermutationIndexesPerBlock);
+                index = permutationBlocks[usedBlock][blockDiv.rem] + (blockDiv.quot * SetRandomizerInternal::cPermutationIndexesPerBlock);
             }
 
             for (uint32_t revMultiplier = 2, combMult = permutationMultiplier >> 1;
                 combMult > 0;
                 revMultiplier <<= 1, combMult >>= 1)
             {
-                const uint32_t blockSize = SetRandomizerInternal::kPermutationIndexesPerBlock * revMultiplier;
+                const uint32_t blockSize = SetRandomizerInternal::cPermutationIndexesPerBlock * revMultiplier;
                 if (index < (blockSize * combMult))
                 {
                     const std::ldiv_t baseMultDiv = std::ldiv(index, revMultiplier);
                     index = baseMultDiv.quot;
 
-                    const std::ldiv_t blockDiv = std::ldiv(index, SetRandomizerInternal::kPermutationIndexesPerBlock);
+                    const std::ldiv_t blockDiv = std::ldiv(index, SetRandomizerInternal::cPermutationIndexesPerBlock);
                     uint32_t usedBlock = 0;
                     if constexpr (MixedBlocks)
                     {
                         usedBlock = i % permutationBlocks.size();
                     }
-                    index = permutationBlocks[usedBlock][blockDiv.rem] + (blockDiv.quot * SetRandomizerInternal::kPermutationIndexesPerBlock);
+                    index = permutationBlocks[usedBlock][blockDiv.rem] + (blockDiv.quot * SetRandomizerInternal::cPermutationIndexesPerBlock);
 
                     index = (index * revMultiplier) + baseMultDiv.rem;
                 }
@@ -384,17 +572,17 @@ uint32_t SetRandomizerInternal::GetWheeledIndex(uint32_t index, std::span<const 
     switch (mShuffleMode)
     {
     default:
-    case ShuffleMode::kNone:
+    case ShuffleMode::None:
         return mSetSize - 1;
 
-    case ShuffleMode::kCoinFlip:
+    case ShuffleMode::CoinFlip:
         return (index ^ permutationBlocks[0][0]) & 0b1;
 
-    case ShuffleMode::kPermutation:
+    case ShuffleMode::Permutation:
         return permutationBlocks[0][index];
 
 
-    case ShuffleMode::kPermutationExtended:
+    case ShuffleMode::PermutationExtended:
     {
         for (int64_t blockIndex = 0; blockIndex < (int64_t)permutationBlocks.size(); ++blockIndex)
         {
@@ -422,12 +610,12 @@ uint32_t SetRandomizerInternal::GetWheeledIndex(uint32_t index, std::span<const 
      *      Split the bottom 100 to the top (again).
      *      Shuffle again, redistributing the once-lowered 10 back into the base 190
      */
-    case ShuffleMode::kRepeatedShuffling:
+    case ShuffleMode::RepeatedShuffling:
     {
         return RepeatedShuffling<false>(mSetSize, index, mPermutationMultiplier, permutationBlocks);
     }
 
-    case ShuffleMode::kRepeatedShufflingWithBlockMixing:
+    case ShuffleMode::RepeatedShufflingWithBlockMixing:
     {
         return RepeatedShuffling<true>(mSetSize, index, mPermutationMultiplier, permutationBlocks);
     }

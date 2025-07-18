@@ -117,25 +117,28 @@ SetRandomizerMenu::SetRandomizerMenu(const char* const input, ConsoleMenu& paren
     parentMenu.AddSubmenu(input, mMenu);
 
     mMenu.AddSubmenu("v", mMenuVisualize);
-    mMenuVisualize.AddCommand("ba", "Set Size 19 (1 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_1, this, 19)));
-    mMenuVisualize.AddCommand("bb", "Set Size 31 (2 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_2, this, 31)));
-    mMenuVisualize.AddCommand("bc", "Set Size 43 (3 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_3, this, 43)));
-    mMenuVisualize.AddCommand("ca", "Set Size 178 (1 block)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_1, this, 178)));
-    mMenuVisualize.AddCommand("cb", "Set Size 178 (2 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_2, this, 178)));
-    mMenuVisualize.AddCommand("cc", "Set Size 178 (3 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_3, this, 178)));
-    mMenuVisualize.AddCommand("da", "Set Size 1783 (1 block)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_1, this, 1783)));
-    mMenuVisualize.AddCommand("db", "Set Size 1783 (2 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_2, this, 1783)));
-    mMenuVisualize.AddCommand("dc", "Set Size 1783 (3 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_3, this, 1783)));
-    mMenuVisualize.AddCommand("sa", "Set Size 128 (13 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_13, this, 128)));
-    mMenuVisualize.AddCommand("za", "Set Size 251 (28 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_28, this, 251)));
-    mMenuVisualize.AddCommand("zb", "Set Size 252 (28 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_28, this, 252)));
-    mMenuVisualize.AddCommand("zc", "Set Size 253 (28 blocks)", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_VisualizeN_28, this, 253)));
+    mMenuVisualize.AddCommand("ba", "Set Size 19 (1 blocks)", [this]() { Cmd_VisualizeN_1(19); });
+    mMenuVisualize.AddCommand("bb", "Set Size 31 (2 blocks)", [this]() { Cmd_VisualizeN_2(31); });
+    mMenuVisualize.AddCommand("bc", "Set Size 43 (3 blocks)", [this]() { Cmd_VisualizeN_3(43); });
+    mMenuVisualize.AddCommand("ca", "Set Size 178 (1 block)", [this]() { Cmd_VisualizeN_1(178); });
+    mMenuVisualize.AddCommand("cb", "Set Size 178 (2 blocks)", [this]() { Cmd_VisualizeN_2(178); });
+    mMenuVisualize.AddCommand("cc", "Set Size 178 (3 blocks)", [this]() { Cmd_VisualizeN_3(178); });
+    mMenuVisualize.AddCommand("da", "Set Size 1783 (1 block)", [this]() { Cmd_VisualizeN_1(1783); });
+    mMenuVisualize.AddCommand("db", "Set Size 1783 (2 blocks)", [this]() { Cmd_VisualizeN_2(1783); });
+    mMenuVisualize.AddCommand("dc", "Set Size 1783 (3 blocks)", [this]() { Cmd_VisualizeN_3(1783); });
+    mMenuVisualize.AddCommand("sa", "Set Size 128 (13 blocks)", [this]() { Cmd_VisualizeN_13(128); });
+    mMenuVisualize.AddCommand("za", "Set Size 251 (28 blocks)", [this]() { Cmd_VisualizeN_28(251); });
+    mMenuVisualize.AddCommand("zb", "Set Size 252 (28 blocks)", [this]() { Cmd_VisualizeN_28(252); });
+    mMenuVisualize.AddCommand("zc", "Set Size 253 (28 blocks)", [this]() { Cmd_VisualizeN_28(253); });
     mMenuVisualize.AddCommand("wa", "Whatever Set Size You Want (1 block);dSet Size", [this](uint64_t setSize) { Cmd_VisualizeN_1(setSize); });
     mMenuVisualize.AddCommand("wb", "Whatever Set Size You Want (2 blocks);dSet Size", [this](uint64_t setSize) { Cmd_VisualizeN_2(setSize); });
     mMenuVisualize.AddCommand("wc", "Whatever Set Size You Want (3 blocks);dSet Size", [this](uint64_t setSize) { Cmd_VisualizeN_3(setSize); });
     mMenuVisualize.AddCommand("wm", "Whatever Set Size You Want (13 blocks);dSet Size", [this](uint64_t setSize) { Cmd_VisualizeN_13(setSize); });
-    mMenuVisualize.AddCommand("tl", "Test Large", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_TestLarge, this)));
-    mMenuVisualize.AddCommand("tv", "Test Various", std::function<void(void)>(std::bind(&SetRandomizerMenu::Cmd_TestVarious, this)));
+    mMenuVisualize.AddCommand("tl", "Test Large", [this]() { Cmd_TestLarge(); });
+    mMenuVisualize.AddCommand("tv", "Test Various", [this]() { Cmd_TestVarious(); });
+
+    mMenu.AddCommand("mdt", "Make Docs: Transformer;dSet Size", [this](uint64_t setSize) { Cmd_MakeDocs_Transformer(setSize); });
+    mMenu.AddCommand("mds", "Make Docs: Standard Transform in cpp", [this]() { Cmd_MakeDocs_StandardTransform(); });
 }
 
 void SetRandomizerMenu::Cmd_VisualizeN_1(uint64_t n)
@@ -195,6 +198,305 @@ void SetRandomizerMenu::Cmd_TestVarious()
 void SetRandomizerMenu::Cmd_TestLarge()
 {
     Cmd_VisualizeN_13(4680);  printf("\n\n");
+}
+
+struct SetRandomizerTNode
+{
+    SetRandomizerTNode(SetRandomizerMenu& parent, uint64_t inNumericalValue)
+        : mParent(parent)
+        , NumericalValue(inNumericalValue)
+    {}
+
+    void Div(uint64_t divisor)
+    {
+        if (NumericalValue >= mParent.mTransformerLimit)
+        {
+            return;
+        }
+        if (Quotient)
+        {
+            Quotient->Div(divisor);
+        }
+        else
+        {
+            Quotient = new SetRandomizerTNode(mParent, NumericalValue / divisor);
+            Remainder = new SetRandomizerTNode(mParent, NumericalValue % divisor);
+            NumericalValue = divisor;
+        }
+    }
+
+    uint64_t Combine()
+    {
+        if (Quotient)
+        {
+            if (Quotient->Quotient)
+            {
+                return Quotient->Combine();
+            }
+            else
+            {
+                const uint64_t oldDivisor = NumericalValue;
+                NumericalValue = (Quotient->NumericalValue * oldDivisor) + Remainder->NumericalValue;
+                delete Quotient;
+                Quotient = nullptr;
+                delete Remainder;
+                Remainder = nullptr;
+                return oldDivisor;
+            }
+        }
+        return 0;
+    }
+
+    void MapQuotient(uint64_t indexA, uint64_t indexB)
+    {
+        if (Quotient)
+        {
+            if (Quotient->Quotient)
+            {
+                Quotient->MapQuotient(indexA, indexB);
+            }
+            else
+            {
+                if (Quotient->NumericalValue == indexA)
+                {
+                    Quotient->NumericalValue = indexB;
+                }
+                else if (Quotient->NumericalValue == indexB)
+                {
+                    Quotient->NumericalValue = indexA;
+                }
+            }
+        }
+    }
+
+    void MapRemainder(uint64_t indexA, uint64_t indexB)
+    {
+        if (Quotient)
+        {
+            if (Quotient->Quotient)
+            {
+                Quotient->MapRemainder(indexA, indexB);
+            }
+            else
+            {
+                if (Remainder->NumericalValue == indexA)
+                {
+                    Remainder->NumericalValue = indexB;
+                }
+                else if (Remainder->NumericalValue == indexB)
+                {
+                    Remainder->NumericalValue = indexA;
+                }
+            }
+        }
+    }
+
+    void Shift(uint64_t amount)
+    {
+        const uint64_t nodes = mParent.mTransformerNodes.size();
+        NumericalValue = (NumericalValue + (nodes - amount)) % nodes;
+    }
+
+    void Print()
+    {
+        if (Quotient)
+        {
+            putchar('[');
+            Quotient->Print();
+            putchar('_');
+            Remainder->Print();
+            putchar(']');
+        }
+        else
+        {
+            printf("%llu", NumericalValue);
+        }
+    }
+
+private:
+    SetRandomizerMenu& mParent;
+    uint64_t NumericalValue = 0;
+    SetRandomizerTNode* Quotient = nullptr;
+    SetRandomizerTNode* Remainder = nullptr;
+};
+
+void SetRandomizerMenu::Cmd_MakeDocs_Transformer(uint64_t setSize)
+{
+    MakeDocs_Transformer_Reset(setSize);
+
+    ConsoleMenu transformerMenu("Make Docs: Transformer");
+    transformerMenu.AddCommand("r", "Reset", [this]() { MakeDocs_Transformer_Reset(mTransformerNodes.size()); });
+    transformerMenu.AddCommand("l", "Limit Transforms;dMin value to no longer transform", [this](uint64_t limit) { MakeDocs_Transformer_Limit(limit); });
+    transformerMenu.AddCommand("d", "Div;dDivisor", [this](uint64_t divisor) { MakeDocs_Transformer_Div(divisor); });
+    transformerMenu.AddCommand("c", "Combine", [this]() { MakeDocs_Transformer_Combine(); });
+    transformerMenu.AddCommand("mq", "Map Quotient;dIndex A;dIndex B", [this](uint64_t indexA, uint64_t indexB) { MakeDocs_Transformer_MapQuotient(indexA, indexB); });
+    transformerMenu.AddCommand("mr", "Map Remainder;dIndex A;dIndex B", [this](uint64_t indexA, uint64_t indexB) { MakeDocs_Transformer_MapRemainder(indexA, indexB); });
+    transformerMenu.AddCommand("s", "Shift;dAmount", [this](uint64_t amount) { MakeDocs_Transformer_Shift(amount); });
+
+    transformerMenu.RunMenu();
+    MakeDocs_Transformer_Clear();
+}
+
+void SetRandomizerMenu::Cmd_MakeDocs_StandardTransform()
+{
+    const uint64_t setSize = 16;
+    MakeDocs_Transformer_Reset(setSize);
+
+    MakeDocs_Transformer_Limit(15);
+    MakeDocs_Transformer_Div(3);
+    MakeDocs_Transformer_MapRemainder(0, 1);
+    MakeDocs_Transformer_Combine();
+    putchar('\n');
+
+    MakeDocs_Transformer_Limit(12);
+    MakeDocs_Transformer_Div(2);
+    MakeDocs_Transformer_Div(3);
+    MakeDocs_Transformer_MapRemainder(0, 1);
+    MakeDocs_Transformer_Combine();
+    MakeDocs_Transformer_Combine();
+    putchar('\n');
+
+    MakeDocs_Transformer_Limit(12);
+    MakeDocs_Transformer_Div(4);
+    MakeDocs_Transformer_Div(3);
+    MakeDocs_Transformer_MapRemainder(0, 1);
+    MakeDocs_Transformer_Combine();
+    MakeDocs_Transformer_Combine();
+    putchar('\n');
+
+    MakeDocs_Transformer_Shift(4);
+    putchar('\n');
+
+    MakeDocs_Transformer_Limit(15);
+    MakeDocs_Transformer_Div(5);
+    MakeDocs_Transformer_MapQuotient(0, 1);
+    MakeDocs_Transformer_Combine();
+    putchar('\n');
+
+    MakeDocs_Transformer_Shift(4);
+    putchar('\n');
+
+    MakeDocs_Transformer_Limit(15);
+    MakeDocs_Transformer_Div(3);
+    MakeDocs_Transformer_MapRemainder(0, 1);
+    MakeDocs_Transformer_Combine();
+    putchar('\n');
+
+    MakeDocs_Transformer_Limit(12);
+    MakeDocs_Transformer_Div(2);
+    MakeDocs_Transformer_Div(3);
+    MakeDocs_Transformer_MapRemainder(0, 1);
+    MakeDocs_Transformer_Combine();
+    MakeDocs_Transformer_Combine();
+    putchar('\n');
+
+    MakeDocs_Transformer_Limit(12);
+    MakeDocs_Transformer_Div(4);
+    MakeDocs_Transformer_Div(3);
+    MakeDocs_Transformer_MapRemainder(0, 1);
+    MakeDocs_Transformer_Combine();
+    MakeDocs_Transformer_Combine();
+    putchar('\n');
+
+    PrintCurrentTransformer();
+    printf(" from ");
+    MakeDocs_Transformer_Reset(setSize);
+    MakeDocs_Transformer_Clear();
+}
+
+void SetRandomizerMenu::MakeDocs_Transformer_Clear()
+{
+    for (SetRandomizerTNode* node : mTransformerNodes)
+    {
+        delete node;
+    }
+    mTransformerNodes.clear();
+}
+
+void SetRandomizerMenu::MakeDocs_Transformer_Reset(uint64_t setSize)
+{
+    MakeDocs_Transformer_Clear();
+
+    for (uint64_t i = 0; i < setSize; ++i)
+    {
+        mTransformerNodes.push_back(new SetRandomizerTNode(*this, i));
+    }
+
+    PrintCurrentTransformer();
+    putchar('\n');
+}
+
+void SetRandomizerMenu::MakeDocs_Transformer_Limit(uint64_t limit)
+{
+    mTransformerLimit = limit;
+}
+
+void SetRandomizerMenu::MakeDocs_Transformer_Combine()
+{
+    uint64_t oldDivisor = 0;
+    for (SetRandomizerTNode* node : mTransformerNodes)
+    {
+        oldDivisor = std::max(node->Combine(), oldDivisor);
+    }
+    PrintCurrentTransformer();
+    printf(" :: combine %llu\n", oldDivisor);
+}
+
+void SetRandomizerMenu::MakeDocs_Transformer_Div(uint64_t divisor)
+{
+    for (SetRandomizerTNode* node : mTransformerNodes)
+    {
+        node->Div(divisor);
+    }
+    PrintCurrentTransformer();
+    printf(" :: div %llu\n", divisor);
+}
+
+void SetRandomizerMenu::MakeDocs_Transformer_MapQuotient(uint64_t indexA, uint64_t indexB)
+{
+    for (SetRandomizerTNode* node : mTransformerNodes)
+    {
+        node->MapQuotient(indexA, indexB);
+    }
+    PrintCurrentTransformer();
+    printf(" :: qmap(%llu,%llu)\n", indexA, indexB);
+}
+
+void SetRandomizerMenu::MakeDocs_Transformer_MapRemainder(uint64_t indexA, uint64_t indexB)
+{
+    for (SetRandomizerTNode* node : mTransformerNodes)
+    {
+        node->MapRemainder(indexA, indexB);
+    }
+    PrintCurrentTransformer();
+    printf(" :: rmap(%llu,%llu)\n", indexA, indexB);
+}
+
+void SetRandomizerMenu::MakeDocs_Transformer_Shift(uint64_t amount)
+{
+    for (SetRandomizerTNode* node : mTransformerNodes)
+    {
+        node->Shift(amount);
+    }
+    PrintCurrentTransformer();
+    printf(" :: shift %llu\n", amount);
+}
+
+void SetRandomizerMenu::PrintCurrentTransformer()
+{
+    bool firstNode = true;
+    for (SetRandomizerTNode* node : mTransformerNodes)
+    {
+        if (firstNode)
+        {
+            firstNode = false;
+        }
+        else
+        {
+            putchar(',');
+        }
+        node->Print();
+    }
 }
 
 void SetRandomizerMenu::Reseed()
