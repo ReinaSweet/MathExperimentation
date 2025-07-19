@@ -39,18 +39,20 @@
 
 namespace Factoradics
 {
+    using bits = int64_t;
+    using setsize = size_t;
 
     constexpr size_t cNumBlock = 28;
     
-    template<int64_t tMax>
-    consteval int64_t ConstMax(int64_t value)
+    template<bits tMax>
+    consteval bits ConstMax(bits value)
     {
         return (value > tMax) ? tMax : value;
     }
 
-    consteval int64_t ConstFactorialRange(int64_t min, int64_t max)
+    consteval bits ConstFactorialRange(bits min, bits max)
     {
-        int64_t value = min == 0 ? 1 : min;
+        bits value = min == 0 ? 1 : min;
         for (; max > min; --max)
         {
             value *= max;
@@ -58,8 +60,8 @@ namespace Factoradics
         return value;
     }
 
-    template<int64_t MinFactorial, int64_t MaxFactorial>
-    constexpr int64_t FactorialRange(int64_t m)
+    template<bits MinFactorial, bits MaxFactorial>
+    constexpr bits FactorialRange(setsize m)
     {
         switch (m)
         {
@@ -93,13 +95,13 @@ namespace Factoradics
 
     struct Block
     {
-        int64_t MinFactorial = 1;
-        int64_t MaxFactorial;
-        int64_t MinSetPosition = 0;
-        int64_t MaxBeforeRejectionSampling = 0;
+        setsize MinFactorial = 1;
+        setsize MaxFactorial;
+        setsize MinSetPosition = 0;
+        bits MaxNumOfMaxFactoradic = 0;
         bool CoinflipFinalTwo = false;
 
-        constexpr Block(uint64_t entries)
+        constexpr Block(setsize entries)
             : MaxFactorial(entries)
         {}
     };
@@ -124,17 +126,16 @@ namespace Factoradics
         Or combine multiple of them over many blocks
         */
 
-        uint64_t baseFactorial = 0;
+        setsize baseFactorial = 0;
         for (Block& block : blocks)
         {
-            const uint64_t nextBase = baseFactorial + block.MaxFactorial;
+            const setsize nextBase = baseFactorial + block.MaxFactorial;
             block.MinFactorial += baseFactorial;
             block.MaxFactorial += baseFactorial;
             block.MinSetPosition += baseFactorial;
 
-            const int64_t unbiasedMaxBase = ConstFactorialRange(block.MinFactorial, block.MaxFactorial);
-            const int64_t maxInstancesOfUnbiasedBase = std::numeric_limits<int64_t>::max() / unbiasedMaxBase; // Truncation intentional
-            block.MaxBeforeRejectionSampling = maxInstancesOfUnbiasedBase * unbiasedMaxBase;
+            const bits unbiasedMaxBase = ConstFactorialRange(block.MinFactorial, block.MaxFactorial);
+            block.MaxNumOfMaxFactoradic = std::numeric_limits<bits>::max() / unbiasedMaxBase; // Truncation intentional
 
             baseFactorial = nextBase;
         }
@@ -143,81 +144,94 @@ namespace Factoradics
         return blocks;
     }();
 
-};
-
-/**
- * Build an indexed permutation sequence for our current random seed
- * See: https://oeis.org/A030299 (but off by 1)
- */
-template<size_t tMaxBlockIndex, Factoradics::Block tMaxBlock = Factoradics::cBlocks[tMaxBlockIndex]>
-class PermutationBuilder
-{
-public:
-    PermutationBuilder(int32_t setSize)
-        : mNextEntry(setSize > tMaxBlock.MaxFactorial ? tMaxBlock.MaxFactorial : setSize)
+    consteval Block GetBlock(setsize index)
     {
-        std::iota(mPositionSet.begin(), mPositionSet.end(), 0);
+        return cBlocks[index];
     }
 
-    template<size_t tBlockIndex, Factoradics::Block tBlock = Factoradics::cBlocks[tBlockIndex]>
-    void FillBlock(SetRandomizerInternal::PermutationBlock& permutationIndexes, int64_t randomBits)
+    constexpr const Block& GetBlockAtRunTime(setsize index)
     {
-        // TODO: Rejection Sampling
+        return cBlocks[index];
+    }
 
-        mValueAndRemainder = { 0, randomBits % Factoradics::FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry)};
-
-        --mNextEntry;
-        mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, Factoradics::FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry));
-        permutationIndexes[mNextEntry - tBlock.MinSetPosition] = GetAndRemovePosition(mValueAndRemainder.quot);
-
-        constexpr int64_t cLoopMin = (tBlock.MinFactorial + ((int64_t)tBlock.CoinflipFinalTwo));
-        while (mNextEntry > cLoopMin)
+    /**
+     * Build an indexed permutation sequence for our current random seed
+     * See: https://oeis.org/A030299 (but off by 1)
+     * 
+     * ... Technically no longer true (because of the new set indexing)
+     */
+    template<setsize tMaxBlockIndex, Block tMaxBlock = GetBlock(tMaxBlockIndex)>
+    class PermutationBuilder
+    {
+    public:
+        PermutationBuilder(int32_t setSize)
+            : mNextEntry(setSize > tMaxBlock.MaxFactorial ? tMaxBlock.MaxFactorial : setSize)
         {
+            std::iota(mPositionSet.begin(), mPositionSet.end(), 0);
+        }
+
+        template<size_t tBlockIndex, Block tBlock = GetBlock(tBlockIndex)>
+        void FillBlock(SetRandomizerInternal::PermutationBlock& permutationIndexes, int64_t randomBits)
+        {
+            // TODO: Rejection Sampling
+
+            mValueAndRemainder = { 0, randomBits % FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry) };
+
             --mNextEntry;
-            mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, Factoradics::FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry));
+            mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry));
             permutationIndexes[mNextEntry - tBlock.MinSetPosition] = GetAndRemovePosition(mValueAndRemainder.quot);
+
+            constexpr int64_t cLoopMin = (tBlock.MinFactorial + ((int64_t)tBlock.CoinflipFinalTwo));
+            while (mNextEntry > cLoopMin)
+            {
+                --mNextEntry;
+                mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry));
+                permutationIndexes[mNextEntry - tBlock.MinSetPosition] = GetAndRemovePosition(mValueAndRemainder.quot);
+            }
+
+            if constexpr (tBlock.CoinflipFinalTwo)
+            {
+                const size_t finalBit = mValueAndRemainder.rem & 0b1;
+                permutationIndexes[finalBit] = mPositionSet[1];
+                permutationIndexes[finalBit ^ 0b1] = mPositionSet[0];
+            }
+            else
+            {
+                --mNextEntry;
+                const uint8_t finalEntry = GetAndRemovePosition(mValueAndRemainder.rem);
+                const int64_t finalEntryIndex = mNextEntry - tBlock.MinSetPosition;
+                permutationIndexes[finalEntryIndex] = finalEntry;
+            }
         }
 
-        if constexpr (tBlock.CoinflipFinalTwo)
+        template<size_t tBlockIndex>
+        inline void FillBlockAndFallThrough(std::span<SetRandomizerInternal::PermutationBlock>& permutationBlocks, std::span<int64_t> randomBits)
         {
-            const size_t finalBit = mValueAndRemainder.rem & 0b1;
-            permutationIndexes[finalBit] = mPositionSet[1];
-            permutationIndexes[finalBit ^ 0b1] = mPositionSet[0];
+            FillBlock<tBlockIndex>(permutationBlocks[tBlockIndex], randomBits[tBlockIndex]);
+            if constexpr (tBlockIndex > 0)
+            {
+                FillBlockAndFallThrough<tBlockIndex - 1>(permutationBlocks, randomBits);
+            }
         }
-        else
+
+    private:
+        inline uint8_t GetAndRemovePosition(int64_t position)
         {
-            --mNextEntry;
-            const uint8_t finalEntry = GetAndRemovePosition(mValueAndRemainder.rem);
-            const int64_t finalEntryIndex = mNextEntry - tBlock.MinSetPosition;
-            permutationIndexes[finalEntryIndex] = finalEntry;
+            const uint8_t positionValue = mPositionSet[position];
+            mPositionSet[position] = mPositionSet[mNextEntry];
+            return positionValue;
         }
-    }
 
-    template<size_t tBlockIndex>
-    inline void FillBlockAndFallThrough(std::span<SetRandomizerInternal::PermutationBlock>& permutationBlocks, std::span<int64_t> randomBits)
-    {
-        FillBlock<tBlockIndex>(permutationBlocks[tBlockIndex], randomBits[tBlockIndex]);
-        if constexpr (tBlockIndex > 0)
-        {
-            FillBlockAndFallThrough<tBlockIndex - 1>(permutationBlocks, randomBits);
-        }
-    }
-
-private:
-    inline uint8_t GetAndRemovePosition(int64_t position)
-    {
-        const uint8_t positionValue = mPositionSet[position];
-        mPositionSet[position] = mPositionSet[mNextEntry];
-        return positionValue;
-    }
-
-    alignas(16) std::array<uint8_t, tMaxBlock.MaxFactorial> mPositionSet;
-    int64_t mNextEntry;
-    std::lldiv_t mValueAndRemainder;
+        alignas(16) std::array<uint8_t, tMaxBlock.MaxFactorial> mPositionSet;
+        int64_t mNextEntry;
+        std::lldiv_t mValueAndRemainder;
+    };
 };
+
 
 void SetRandomizerInternal::RandomizeSingleBlock(SetRandomizerInternal::PermutationBlock& permutationBlock) noexcept
 {
+    using namespace Factoradics;
     const int64_t randomBits = MakeRandom();
     mShuffleMode = ShuffleMode::None;
 
@@ -238,7 +252,7 @@ void SetRandomizerInternal::RandomizeSingleBlock(SetRandomizerInternal::Permutat
     PermutationBuilder<0> permutationBuilder(mSetSize);
     permutationBuilder.FillBlock<0>(permutationBlock, randomBits);
 
-    if (mSetSize <= Factoradics::cBlocks[0].MaxFactorial)
+    if (mSetSize <= GetBlock(0).MaxFactorial)
     {
         mShuffleMode = ShuffleMode::Permutation;
         return;
@@ -253,6 +267,7 @@ void SetRandomizerInternal::RandomizeSingleBlock(SetRandomizerInternal::Permutat
 template<SetRandomizerInternal::ShuffleDataSize tDataSize>
 void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::PermutationBlock> permutationBlocks)
 {
+    using namespace Factoradics;
     const int64_t randomBits = MakeRandom();
     mShuffleMode = ShuffleMode::None;
 
@@ -270,7 +285,7 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Permutati
         return;
     }
 
-    if (mSetSize <= Factoradics::cBlocks[0].MaxFactorial)
+    if (mSetSize <= GetBlock(0).MaxFactorial)
     {
         PermutationBuilder<0> permutationBuilder(mSetSize);
         permutationBuilder.FillBlock<0>(permutationBlocks[0], randomBits);
@@ -278,15 +293,15 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Permutati
         return;
     }
 
-    if (mSetSize <= Factoradics::cBlocks.back().MaxFactorial)
+    if (mSetSize <= cBlocks.back().MaxFactorial)
     {
-        const size_t blockSize = std::min(permutationBlocks.size(), Factoradics::cBlocks.size());
+        const size_t blockSize = std::min(permutationBlocks.size(), cBlocks.size());
 
         if constexpr (tDataSize == SetRandomizerInternal::ShuffleDataSize::Small)
         {
             for (size_t blockIndex = 0; blockIndex < blockSize; ++blockIndex)
             {
-                if (mSetSize <= Factoradics::cBlocks[blockIndex].MaxFactorial)
+                if (mSetSize <= GetBlockAtRunTime(blockIndex).MaxFactorial)
                 {
                     FillWithPermutationExtended(blockIndex, permutationBlocks);
                     return;
@@ -305,7 +320,7 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Permutati
 
             for (; blockIndex > 0; --blockIndex)
             {
-                if (mSetSize > Factoradics::cBlocks[blockIndex].MinSetPosition)
+                if (mSetSize > GetBlockAtRunTime(blockIndex).MinSetPosition)
                 {
                     FillWithPermutationExtended(blockIndex, permutationBlocks);
                     return;
@@ -343,11 +358,12 @@ template void SetRandomizerInternal::Randomize<SetRandomizerInternal::ShuffleDat
 template void SetRandomizerInternal::Randomize<SetRandomizerInternal::ShuffleDataSize::Large>(std::span<SetRandomizerInternal::PermutationBlock>);
 
 
-void SetRandomizerInternal::FillWithPermutationExtended(size_t maxBlockIndex, std::span<SetRandomizerInternal::PermutationBlock>& permutationBlocks)
+void SetRandomizerInternal::FillWithPermutationExtended(Factoradics::setsize maxBlockIndex, std::span<SetRandomizerInternal::PermutationBlock>& permutationBlocks)
 {
+    using namespace Factoradics;
     mShuffleMode = ShuffleMode::PermutationExtended;
 
-    std::vector<int64_t> randomBits;
+    std::vector<bits> randomBits;
     randomBits.reserve(maxBlockIndex + 1);
     for (size_t i = 0; i <= maxBlockIndex; ++i)
     {
@@ -564,6 +580,7 @@ The above example is a showcase of a transform with a factoradic max base of 3 o
 
 uint32_t SetRandomizerInternal::GetWheeledIndex(uint32_t index, std::span<const SetRandomizerInternal::PermutationBlock> permutationBlocks) const
 {
+    using namespace Factoradics;
     if (index > mSetSize)
     {
         return index;
@@ -584,11 +601,11 @@ uint32_t SetRandomizerInternal::GetWheeledIndex(uint32_t index, std::span<const 
 
     case ShuffleMode::PermutationExtended:
     {
-        for (int64_t blockIndex = 0; blockIndex < (int64_t)permutationBlocks.size(); ++blockIndex)
+        for (setsize blockIndex = 0; blockIndex < permutationBlocks.size(); ++blockIndex)
         {
-            if (index < Factoradics::cBlocks[blockIndex].MaxFactorial)
+            if (index < GetBlockAtRunTime(blockIndex).MaxFactorial)
             {
-                return permutationBlocks[blockIndex][index - Factoradics::cBlocks[blockIndex].MinSetPosition];
+                return permutationBlocks[blockIndex][index - GetBlockAtRunTime(blockIndex).MinSetPosition];
             }
         }
         return index;
@@ -622,7 +639,7 @@ uint32_t SetRandomizerInternal::GetWheeledIndex(uint32_t index, std::span<const 
     }
 }
 
-int64_t SetRandomizerInternal::MakeRandom() const
+Factoradics::bits SetRandomizerInternal::MakeRandom() const
 {
-    return ((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc();
+    return ((Factoradics::bits)mRandomFunc() << 32) & INT64_MAX | (Factoradics::bits)mRandomFunc();
 }
