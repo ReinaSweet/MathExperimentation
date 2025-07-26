@@ -36,7 +36,6 @@ private:
     template<ShuffleDataSize tDataSize>
     void Randomize(std::span<SetRandomizerInternal::PermutationBlock> permutationBlocks);
 
-    void FillWithPermutationExtended(size_t maxBlockIndex, std::span<SetRandomizerInternal::PermutationBlock>& permutationBlocks);
     [[nodiscard]] uint32_t GetWheeledIndex(uint32_t index, std::span<const SetRandomizerInternal::PermutationBlock> permutationBlocks) const;
     [[nodiscard]] int64_t MakeRandom() const;
 
