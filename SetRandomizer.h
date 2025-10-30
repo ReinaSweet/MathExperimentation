@@ -2,6 +2,59 @@
 template<size_t tSize>
 concept WithinPermutationBlockBounds = tSize > 0 && tSize <= 28;
 
+
+
+namespace Factoradics
+{
+    using SetSize = size_t;
+
+    struct Bits
+    {
+        using UnderlyingType = int64_t;
+
+
+        constexpr Bits(UnderlyingType value)
+            : mValue(value)
+        {}
+
+        constexpr Bits(const Bits& value)
+            : mValue(value.mValue)
+        {}
+
+        static constexpr Bits Max()
+        {
+            return std::numeric_limits<UnderlyingType>::max();
+        }
+
+        constexpr Bits& operator=(UnderlyingType value) { mValue = value; return *this; }
+        constexpr Bits& operator--() { mValue--; return *this; }
+        constexpr Bits& operator*=(const Bits& value) { mValue = mValue * value.mValue; return *this; }
+
+        constexpr Bits DivAndSetToRemainder(const Bits& value)
+        {
+            const UnderlyingType quot = (mValue / value.mValue);
+            const UnderlyingType rem = (mValue % value.mValue);
+            
+            mValue = rem;
+            return Bits(quot);
+        }
+
+        inline constexpr Bits operator+(const UnderlyingType& value) const { return Bits(mValue + value); }
+        inline constexpr Bits operator/(const Bits& value) const { return Bits(mValue / value.mValue); }
+
+        inline constexpr bool operator>(const Bits& other) const { return mValue > other.mValue; }
+        inline constexpr bool operator==(const Bits& other) const { return mValue == other.mValue; }
+
+        constexpr UnderlyingType GetFinalBit() const { return (mValue & 0b1); }
+
+        constexpr SetSize AsSetSize() const { return (SetSize)mValue; }
+
+        UnderlyingType mValue = 0;
+    };
+
+};
+
+
 class SetRandomizerInternal
 {
 public:
@@ -36,8 +89,9 @@ private:
     template<ShuffleDataSize tDataSize>
     void Randomize(std::span<SetRandomizerInternal::PermutationBlock> permutationBlocks);
 
+    void FillWithPermutationExtended(Factoradics::SetSize maxBlockIndex, std::span<SetRandomizerInternal::PermutationBlock>& permutationBlocks);
     [[nodiscard]] uint32_t GetWheeledIndex(uint32_t index, std::span<const SetRandomizerInternal::PermutationBlock> permutationBlocks) const;
-    [[nodiscard]] int64_t MakeRandom() const;
+    [[nodiscard]] Factoradics::Bits MakeRandom() const;
 
     uint32_t(* const mRandomFunc)();
     uint32_t mSetSize = 0;

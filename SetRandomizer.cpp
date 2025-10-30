@@ -39,20 +39,19 @@
 
 namespace Factoradics
 {
-    using bits = int64_t;
-    using setsize = size_t;
+    //using Bits = int64_t;
 
     constexpr size_t cNumBlock = 28;
     
-    template<bits tMax>
-    consteval bits ConstMax(bits value)
+    template<Bits tMax>
+    consteval Bits ConstMax(Bits value)
     {
         return (value > tMax) ? tMax : value;
     }
 
-    consteval bits ConstFactorialRange(bits min, bits max)
+    consteval Bits ConstFactorialRange(Bits min, Bits max)
     {
-        bits value = min == 0 ? 1 : min;
+        Bits value(1);
         for (; max > min; --max)
         {
             value *= max;
@@ -60,34 +59,35 @@ namespace Factoradics
         return value;
     }
 
-    template<bits MinFactorial, bits MaxFactorial>
-    constexpr bits FactorialRange(setsize m)
+    template<Bits tMinFactorial, Bits tMaxFactorial>
+    constexpr Bits FactorialRange(SetSize m)
     {
-        switch (m)
+        const SetSize offsetFromMinFactorial = m - tMinFactorial.AsSetSize();
+        switch (offsetFromMinFactorial)
         {
         // Uncomment this to see the constexpr fail for running out of bit space
-        // case (MinFactorial + 21): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial + 1>(MinFactorial + 21));
-        case (MinFactorial + 20): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 20));
-        case (MinFactorial + 19): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 19));
-        case (MinFactorial + 18): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 18));
-        case (MinFactorial + 17): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 17));
-        case (MinFactorial + 16): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 16));
-        case (MinFactorial + 15): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 15));
-        case (MinFactorial + 14): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 14));
-        case (MinFactorial + 13): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 13));
-        case (MinFactorial + 12): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 12));
-        case (MinFactorial + 11): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 11));
-        case (MinFactorial + 10): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 10));
-        case (MinFactorial + 9): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 9));
-        case (MinFactorial + 8): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 8));
-        case (MinFactorial + 7): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 7));
-        case (MinFactorial + 6): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 6));
-        case (MinFactorial + 5): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 5));
-        case (MinFactorial + 4): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 4));
-        case (MinFactorial + 3): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 3));
-        case (MinFactorial + 2): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 2));
-        case (MinFactorial + 1): return ConstFactorialRange(MinFactorial, ConstMax<MaxFactorial>(MinFactorial + 1));
-        case (MinFactorial): return ConstFactorialRange(MinFactorial, MinFactorial);
+        // case (21): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 21));
+        case (20): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 20));
+        case (19): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 19));
+        case (18): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 18));
+        case (17): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 17));
+        case (16): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 16));
+        case (15): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 15));
+        case (14): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 14));
+        case (13): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 13));
+        case (12): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 12));
+        case (11): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 11));
+        case (10): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 10));
+        case (9): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 9));
+        case (8): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 8));
+        case (7): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 7));
+        case (6): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 6));
+        case (5): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 5));
+        case (4): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 4));
+        case (3): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 3));
+        case (2): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 2));
+        case (1): return ConstFactorialRange(tMinFactorial, ConstMax<tMaxFactorial>(tMinFactorial + 1));
+        case (0): return ConstFactorialRange(tMinFactorial, tMinFactorial);
         default: return 1;
         }
     }
@@ -95,13 +95,13 @@ namespace Factoradics
 
     struct Block
     {
-        setsize MinFactorial = 1;
-        setsize MaxFactorial;
-        setsize MinSetPosition = 0;
-        bits MaxNumOfMaxFactoradic = 0;
+        SetSize MinFactorial = 1;
+        SetSize MaxFactorial;
+        SetSize MinSetPosition = 0;
+        Bits MaxNumOfMaxFactoradic = 0;
         bool CoinflipFinalTwo = false;
 
-        constexpr Block(setsize entries)
+        constexpr Block(SetSize entries)
             : MaxFactorial(entries)
         {}
     };
@@ -126,16 +126,16 @@ namespace Factoradics
         Or combine multiple of them over many blocks
         */
 
-        setsize baseFactorial = 0;
+        SetSize baseFactorial = 0;
         for (Block& block : blocks)
         {
-            const setsize nextBase = baseFactorial + block.MaxFactorial;
+            const SetSize nextBase = baseFactorial + block.MaxFactorial;
             block.MinFactorial += baseFactorial;
             block.MaxFactorial += baseFactorial;
             block.MinSetPosition += baseFactorial;
 
-            const bits unbiasedMaxBase = ConstFactorialRange(block.MinFactorial, block.MaxFactorial);
-            block.MaxNumOfMaxFactoradic = std::numeric_limits<bits>::max() / unbiasedMaxBase; // Truncation intentional
+            const Bits unbiasedMaxBase = ConstFactorialRange(block.MinFactorial, block.MaxFactorial);
+            block.MaxNumOfMaxFactoradic = Bits::Max() / unbiasedMaxBase; // Truncation intentional
 
             baseFactorial = nextBase;
         }
@@ -144,12 +144,12 @@ namespace Factoradics
         return blocks;
     }();
 
-    consteval Block GetBlock(setsize index)
+    consteval Block GetBlock(SetSize index)
     {
         return cBlocks[index];
     }
 
-    constexpr const Block& GetBlockAtRunTime(setsize index)
+    constexpr const Block& GetBlockAtRunTime(SetSize index)
     {
         return cBlocks[index];
     }
@@ -160,7 +160,7 @@ namespace Factoradics
      * 
      * ... Technically no longer true (because of the new set indexing)
      */
-    template<setsize tMaxBlockIndex, Block tMaxBlock = GetBlock(tMaxBlockIndex)>
+    template<SetSize tMaxBlockIndex, Block tMaxBlock = GetBlock(tMaxBlockIndex)>
     class PermutationBuilder
     {
     public:
@@ -171,41 +171,41 @@ namespace Factoradics
         }
 
         template<size_t tBlockIndex, Block tBlock = GetBlock(tBlockIndex)>
-        void FillBlock(SetRandomizerInternal::PermutationBlock& permutationIndexes, int64_t randomBits)
+        void FillBlock(SetRandomizerInternal::PermutationBlock& permutationIndexes, Bits randomBits)
         {
             // TODO: Rejection Sampling
 
-            mValueAndRemainder = { 0, randomBits % FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry) };
+            randomBits.DivAndSetToRemainder(FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry));
 
             --mNextEntry;
-            mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry));
-            permutationIndexes[mNextEntry - tBlock.MinSetPosition] = GetAndRemovePosition(mValueAndRemainder.quot);
+            Bits quotient = randomBits.DivAndSetToRemainder(FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry));
+            permutationIndexes[mNextEntry - tBlock.MinSetPosition] = GetAndRemovePosition(quotient);
 
-            constexpr int64_t cLoopMin = (tBlock.MinFactorial + ((int64_t)tBlock.CoinflipFinalTwo));
+            constexpr SetSize cLoopMin = (tBlock.MinFactorial + ((SetSize)tBlock.CoinflipFinalTwo));
             while (mNextEntry > cLoopMin)
             {
                 --mNextEntry;
-                mValueAndRemainder = std::lldiv(mValueAndRemainder.rem, FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry));
-                permutationIndexes[mNextEntry - tBlock.MinSetPosition] = GetAndRemovePosition(mValueAndRemainder.quot);
+                quotient = randomBits.DivAndSetToRemainder(FactorialRange<tBlock.MinFactorial, tBlock.MaxFactorial>(mNextEntry));
+                permutationIndexes[mNextEntry - tBlock.MinSetPosition] = GetAndRemovePosition(quotient);
             }
 
             if constexpr (tBlock.CoinflipFinalTwo)
             {
-                const size_t finalBit = mValueAndRemainder.rem & 0b1;
+                const SetSize finalBit = randomBits.GetFinalBit();
                 permutationIndexes[finalBit] = mPositionSet[1];
                 permutationIndexes[finalBit ^ 0b1] = mPositionSet[0];
             }
             else
             {
                 --mNextEntry;
-                const uint8_t finalEntry = GetAndRemovePosition(mValueAndRemainder.rem);
-                const int64_t finalEntryIndex = mNextEntry - tBlock.MinSetPosition;
+                const uint8_t finalEntry = GetAndRemovePosition(randomBits);
+                const SetSize finalEntryIndex = mNextEntry - tBlock.MinSetPosition;
                 permutationIndexes[finalEntryIndex] = finalEntry;
             }
         }
 
         template<size_t tBlockIndex>
-        inline void FillBlockAndFallThrough(std::span<SetRandomizerInternal::PermutationBlock>& permutationBlocks, std::span<int64_t> randomBits)
+        inline void FillBlockAndFallThrough(std::span<SetRandomizerInternal::PermutationBlock>& permutationBlocks, const std::vector<Bits>& randomBits)
         {
             FillBlock<tBlockIndex>(permutationBlocks[tBlockIndex], randomBits[tBlockIndex]);
             if constexpr (tBlockIndex > 0)
@@ -215,16 +215,15 @@ namespace Factoradics
         }
 
     private:
-        inline uint8_t GetAndRemovePosition(int64_t position)
+        inline uint8_t GetAndRemovePosition(const Bits& position)
         {
-            const uint8_t positionValue = mPositionSet[position];
-            mPositionSet[position] = mPositionSet[mNextEntry];
+            const uint8_t positionValue = mPositionSet[position.AsSetSize()];
+            mPositionSet[position.AsSetSize()] = mPositionSet[mNextEntry];
             return positionValue;
         }
 
         alignas(16) std::array<uint8_t, tMaxBlock.MaxFactorial> mPositionSet;
         int64_t mNextEntry;
-        std::lldiv_t mValueAndRemainder;
     };
 };
 
@@ -232,7 +231,7 @@ namespace Factoradics
 void SetRandomizerInternal::RandomizeSingleBlock(SetRandomizerInternal::PermutationBlock& permutationBlock) noexcept
 {
     using namespace Factoradics;
-    const int64_t randomBits = MakeRandom();
+    const Bits randomBits = MakeRandom();
     mShuffleMode = ShuffleMode::None;
 
     if (mSetSize < 2)
@@ -244,7 +243,7 @@ void SetRandomizerInternal::RandomizeSingleBlock(SetRandomizerInternal::Permutat
     {
         // Caution: PermutationBuilder::FillStandardBlock expects a set size of atleast 3
         // This shuffle mode is here specifically to guard for that
-        permutationBlock[0] = (uint8_t)randomBits & 0b1;
+        permutationBlock[0] = (uint8_t)randomBits.GetFinalBit();
         mShuffleMode = ShuffleMode::CoinFlip;
         return;
     }
@@ -268,7 +267,7 @@ template<SetRandomizerInternal::ShuffleDataSize tDataSize>
 void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::PermutationBlock> permutationBlocks)
 {
     using namespace Factoradics;
-    const int64_t randomBits = MakeRandom();
+    const Bits randomBits = MakeRandom();
     mShuffleMode = ShuffleMode::None;
 
     if (mSetSize < 2)
@@ -280,7 +279,7 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Permutati
     {
         // Caution: PermutationBuilder::FillStandardBlock expects a set size of atleast 3
         // This shuffle mode is here specifically to guard for that
-        permutationBlocks[0][0] = (uint8_t)randomBits & 0b1;
+        permutationBlocks[0][0] = (uint8_t)randomBits.GetFinalBit();
         mShuffleMode = ShuffleMode::CoinFlip;
         return;
     }
@@ -295,11 +294,11 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Permutati
 
     if (mSetSize <= cBlocks.back().MaxFactorial)
     {
-        const size_t blockSize = std::min(permutationBlocks.size(), cBlocks.size());
+        const SetSize blockSize = std::min(permutationBlocks.size(), cBlocks.size());
 
         if constexpr (tDataSize == SetRandomizerInternal::ShuffleDataSize::Small)
         {
-            for (size_t blockIndex = 0; blockIndex < blockSize; ++blockIndex)
+            for (SetSize blockIndex = 0; blockIndex < blockSize; ++blockIndex)
             {
                 if (mSetSize <= GetBlockAtRunTime(blockIndex).MaxFactorial)
                 {
@@ -312,10 +311,10 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Permutati
         {
             /**
             * This polynomial fits set size to be equal to or 1 greater than what fits in each block
-            * Doing this only lets us save a few checks. Which is why we don't both with smaller permutation block sizes
+            * Doing this only lets us save a few checks. Which is why we don't bother with smaller permutation block sizes
             */
             const double setAsDouble = (double)mSetSize;
-            size_t blockIndex = (size_t)(1.177 + (0.07143 * setAsDouble) + (0.000162 * setAsDouble * setAsDouble));
+            SetSize blockIndex = (SetSize)(1.177 + (0.07143 * setAsDouble) + (0.000162 * setAsDouble * setAsDouble));
             blockIndex = std::min(blockIndex, blockSize - 1);
 
             for (; blockIndex > 0; --blockIndex)
@@ -345,7 +344,7 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Permutati
         mPermutationMultiplier = mSetSize / cPermutationIndexesPerBlock;
         for (SetRandomizerInternal::PermutationBlock& permutationBlock : permutationBlocks)
         {
-            const int64_t permutationRandomEx = MakeRandom();
+            const Bits permutationRandomEx = MakeRandom();
             PermutationBuilder<0> permutationBuilder(mSetSize);
             permutationBuilder.FillBlock<0>(permutationBlock, permutationRandomEx);
         }
@@ -358,12 +357,12 @@ template void SetRandomizerInternal::Randomize<SetRandomizerInternal::ShuffleDat
 template void SetRandomizerInternal::Randomize<SetRandomizerInternal::ShuffleDataSize::Large>(std::span<SetRandomizerInternal::PermutationBlock>);
 
 
-void SetRandomizerInternal::FillWithPermutationExtended(Factoradics::setsize maxBlockIndex, std::span<SetRandomizerInternal::PermutationBlock>& permutationBlocks)
+void SetRandomizerInternal::FillWithPermutationExtended(Factoradics::SetSize maxBlockIndex, std::span<SetRandomizerInternal::PermutationBlock>& permutationBlocks)
 {
     using namespace Factoradics;
     mShuffleMode = ShuffleMode::PermutationExtended;
 
-    std::vector<bits> randomBits;
+    std::vector<Bits> randomBits;
     randomBits.reserve(maxBlockIndex + 1);
     for (size_t i = 0; i <= maxBlockIndex; ++i)
     {
@@ -498,6 +497,7 @@ The above example is a showcase of a transform with a factoradic max base of 3 o
         // const uint32_t shuffles = 3 + (((uint32_t)std::log2((double)setSize)) >> 1
         // (std::bit_width(setSize) + 1) >> 1
 
+        using namespace Factoradics;
 
 
         for (uint32_t revMultiplier = 1, combMult = permutationMultiplier;
@@ -601,7 +601,7 @@ uint32_t SetRandomizerInternal::GetWheeledIndex(uint32_t index, std::span<const 
 
     case ShuffleMode::PermutationExtended:
     {
-        for (setsize blockIndex = 0; blockIndex < permutationBlocks.size(); ++blockIndex)
+        for (SetSize blockIndex = 0; blockIndex < permutationBlocks.size(); ++blockIndex)
         {
             if (index < GetBlockAtRunTime(blockIndex).MaxFactorial)
             {
@@ -639,7 +639,7 @@ uint32_t SetRandomizerInternal::GetWheeledIndex(uint32_t index, std::span<const 
     }
 }
 
-Factoradics::bits SetRandomizerInternal::MakeRandom() const
+Factoradics::Bits SetRandomizerInternal::MakeRandom() const
 {
-    return ((Factoradics::bits)mRandomFunc() << 32) & INT64_MAX | (Factoradics::bits)mRandomFunc();
+    return Factoradics::Bits(((int64_t)mRandomFunc() << 32) & INT64_MAX | (int64_t)mRandomFunc());
 }
