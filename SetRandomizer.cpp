@@ -251,7 +251,7 @@ void SetRandomizerInternal::RandomizeSingleBlock(SetRandomizerInternal::Permutat
     PermutationBuilder<0> permutationBuilder(mSetSize);
     permutationBuilder.FillBlock<0>(permutationBlock, randomBits);
 
-    if (mSetSize <= GetBlock(0).MaxFactorial)
+    if (mSetSize <= GetBlockAtRunTime(0).MaxFactorial)
     {
         mShuffleMode = ShuffleMode::Permutation;
         return;
@@ -284,7 +284,7 @@ void SetRandomizerInternal::Randomize(std::span<SetRandomizerInternal::Permutati
         return;
     }
 
-    if (mSetSize <= GetBlock(0).MaxFactorial)
+    if (mSetSize <= GetBlockAtRunTime(0).MaxFactorial)
     {
         PermutationBuilder<0> permutationBuilder(mSetSize);
         permutationBuilder.FillBlock<0>(permutationBlocks[0], randomBits);
